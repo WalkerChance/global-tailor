@@ -12,6 +12,10 @@ sensible default, and alternatives are noted.
 >   flow (currency, country, tax, shipping) is modeled to *support* other
 >   markets, but only the US corridor is enabled in v1. Don't hardcode
 >   "US-only" assumptions that a later market would have to unwind.
+> - **Build order: app + auth + the loop first, payments/tax second.** Phase 1
+>   proves the whole configure-and-order loop with a **test order (no money)**;
+>   Stripe payments + Stripe Tax are wired in Phase 2 once the loop is
+>   validated. Auth/roles are the very first thing built.
 
 ## 1. Stack recommendation
 
@@ -53,8 +57,22 @@ tailor_profiles            (1:1 users holding role=tailor)
 customers
   user_id, default_shipping_address, measurement_profile_id (nullable)
 
-garment_types              (platform taxonomy, shared)
-  id, name(suit|shirt|trousers|...), base_measurement_schema (json)
+garment_types              (taxonomy; standard now, custom later)
+  id, name, base_measurement_schema(json),
+  is_standard(bool),                     -- suit|shirt|pants = true at launch
+  owner_tailor_id (nullable)             -- set when a tailor adds a CUSTOM type (later)
+  -- launch enables 3 standard types (suits, shirts, pants). Custom types are
+  --   just rows with owner_tailor_id set — no schema change needed later.
+
+shop_garment_types         (which types a shop offers — the shop's selection)
+  tailor_id, garment_type_id, active
+  -- garment type is a selectable config when setting up a shop
+
+measurement_fields         (extensible measurement schema per garment type)
+  id, garment_type_id, key, label, unit, required, sort,
+  owner_tailor_id (nullable)             -- null = standard field; set = tailor-CUSTOM (later)
+  -- launch uses the standard fields; a tailor's custom asks are added rows later.
+  --   AR later writes into these same fields.
 
 media                      (single source of truth for all images/video)
   id, owner_user_id, kind(fabric|garment|sample|measurement_video|evidence|other),
@@ -70,6 +88,14 @@ fabrics                    (belongs to a tailor)
   ai_attributes(json)                    -- vision-extracted color/pattern/material
   -- "tile" = the swatch shown in the material selector (see §4.3)
 
+garment_fabric_pricing     (type→material pricing tie-through; scalable)
+  id, tailor_id, garment_type_id, fabric_id,
+  price_amount (nullable),               -- explicit price for this fabric IN this garment
+  yardage_factor (nullable)              -- OR compute from fabric price × how much this type needs
+  -- MVP can ignore this table (flat per-type base + flat per-fabric price).
+  --   It exists so price can depend on BOTH the garment type and the material
+  --   (a suit uses more fabric than a shirt) without a later schema change.
+
 option_groups              (belongs to a tailor + garment_type)  e.g. "Lapel"
   id, tailor_id, garment_type_id, name, required, multi_select
 option_values              (belongs to option_group)             e.g. "Peak"
@@ -78,10 +104,14 @@ option_values              (belongs to option_group)             e.g. "Peak"
 samples                    (portfolio items, belongs to tailor)
   id, tailor_id, garment_type_id, title, description, media_ids[]
 
-shipping_options           (per tailor: carriers/speeds they offer)
-  id, tailor_id, carrier(DHL|FedEx|UPS|EMS|...), service_name,
-  min_days, max_days, price_amount, currency, destination_countries[], active
-  -- powers the customer's "select shipping speed" choice at checkout
+shipping_options           (per tailor: flat-rate options THEY set & quote)
+  id, tailor_id, label, carrier(optional, e.g. DHL),
+  base_price,                            -- flat price for the first item
+  additional_item_price (nullable),      -- flat add per extra item
+  per_item_type_pricing (json, nullable),-- optional flat rates keyed by item type
+  min_days, max_days, currency, destination_countries[], active
+  -- tailor owns & quotes shipping (flat, by item count/type). NOT live carrier
+  --   rates. Customer picks one at checkout; the total is frozen onto the order.
 
 measurement_profiles       (belongs to customer, reusable)
   id, customer_id, label, garment_type_id, values(json),
@@ -89,11 +119,13 @@ measurement_profiles       (belongs to customer, reusable)
 
 orders
   id, customer_id, tailor_id, garment_type_id, status,
+  is_test(bool),                         -- true for the no-payment launch loop
   fabric_selections(json), option_selections(json),
   measurement_snapshot(json),            -- snapshot, not a live reference
-  shipping_option_snapshot(json),        -- chosen carrier/speed, frozen
+  shipping_option_snapshot(json),        -- chosen flat-rate option, frozen
   subtotal, platform_fee, shipping_amount, tax_amount, total, currency,
-  stripe_payment_intent_id, created_at
+  stripe_payment_intent_id (nullable),   -- null until payments (Phase 2)
+  created_at
 
 shipments                  (fulfillment: tailor-entered tracking)
   id, order_id, carrier, tracking_number, tracking_url,
@@ -150,6 +182,12 @@ Getting this into the foundation is far cheaper than retrofitting it.
   refactor.
 
 **Design notes**
+- **Extensible by design, minimal at launch.** Garment types, measurement
+  fields, and the type→material pricing tie-through are all modeled as *data*
+  (`is_standard`/`owner_tailor_id`, `measurement_fields`,
+  `garment_fabric_pricing`) so that later phases — custom garments, custom
+  measurements, fabric-consumption pricing, AR — are new rows, not migrations.
+  The MVP enables only the standard subset.
 - **Snapshot the order.** `orders` stores a *copy* of the chosen fabrics,
   options, prices, and measurements at purchase time. Never render an order
   from live fabric/option rows — the tailor may change prices or retire a

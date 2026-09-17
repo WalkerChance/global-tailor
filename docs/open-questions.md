@@ -3,11 +3,17 @@
 Resolve the **blocking** ones (⛔) before launch/revenue. The rest can be
 decided as you build. Owners/answers to be filled in.
 
-**Decided (this round):** Stripe for payments + tax · US customers only at
+**Decided (rounds 2–3):** Stripe for payments + tax · US customers only at
 launch (scale-ready schema) · mobile-first / iPhone-first web · role-based auth
 (customer/tailor/admin, scaffold now) · a committed unpaid test tailor is the
-seed dataset · customer-selected shipping speed from tailor-enabled options +
-tailor-entered tracking.
+seed dataset · tailor-owned **flat-rate** shipping (by item count/type) +
+tailor-entered tracking · launch garment types = **suits, shirts, pants**
+(selectable per shop; custom garments/options later) · **standardized**
+measurements at launch (tailor-custom asks + AR later) · **type→material
+pricing tie-through** designed now, simplest version in MVP.
+
+**Build sequence (decided):** app + auth + the configure-and-order loop first
+(validate with a **test order, no money**), then payments + tax in Phase 2.
 
 ## ⛔ The dedicated US tax + break-even workstream (separate chat)
 This is its own research task, not a bullet to hand-wave:
@@ -45,40 +51,50 @@ This is its own research task, not a bullet to hand-wave:
    payout absorbs losses.
 
 ## Product scope
-10. **Garment types at launch:** start with one or two (suits + shirts?) to keep
-    the measurement schema and option model small — align with what the test
-    tailor makes.
+10. **Standard option/cut sets:** define the standard cut/option groups for
+    suits, shirts, and pants at launch — aligned with what the test tailor
+    makes. (Garment types themselves are decided: suits/shirts/pants.)
 11. **Fit guarantee generosity:** remake vs. refund vs. local alteration — and
     who funds each. Generous early is likely cheaper than churn.
 12. **Fabric sourcing truth:** are fabrics tailor-stocked (real availability) or
     "can source" (lead-time risk)? Model availability honestly.
 
-## Shipping
-13. **Shipping-speed catalog:** free-form per tailor, or a platform-standard set
-    of carriers/tiers the tailor maps into? (Standardizing helps the customer
-    compare.)
-14. **Tracking:** manual tracking-number entry at launch; when to add carrier
-    webhook/tracking-API automation (Phase 2)?
-15. **Shipping-fee accuracy:** flat per-option price vs. live carrier rates —
-    who eats the difference if the tailor under/over-quotes?
+## Pricing tie-through
+13. **MVP pricing formula:** confirm the launch formula (per-type base +
+    per-fabric price + option modifiers) before layering in fabric-consumption
+    math (`garment_fabric_pricing`). How do we keep the tailor's price entry
+    simple while the model stays extensible?
+
+## Shipping (flat-rate decided)
+14. **Flat-rate structure:** exact shape of the tailor's flat rates — base + per
+    additional item, and/or per item type. Simplest that covers "a suit + 2
+    shirts in one DHL box for ~$70."
+15. **Tracking automation:** manual tracking-number entry at launch; when to add
+    carrier webhook/tracking-API automation (Phase 3)?
+16. **Under/over-quote:** if the tailor's flat rate misses actual cost, who eats
+    it? (Default: the tailor owns it, since they quote it.)
 
 ## Measurement
-16. **v1 measurement UX:** guided manual, "measure an existing garment," or
-    both? Reconcile with the test tailor's video method — which do we teach?
-17. **AR:** build vs. integrate a 3rd-party body-measurement SDK — evaluate in
-    Phase 3, don't commit now.
+17. **Standard measurement set:** finalize the standard fields per garment type,
+    reconciled with the test tailor's video method — what do we teach customers?
+    (Tailor-custom asks come later via `measurement_fields`.)
+18. **AR:** build vs. integrate a 3rd-party body-measurement SDK — evaluate
+    later, don't commit now. Confirm it targets the same `measurement_fields`.
 
 ## Media / AI tiles
-18. **Photo→tile pipeline:** which vision model; accuracy bar for extracted
-    attributes; and the human-confirm step before a tile goes live.
-19. **Media storage:** Supabase Storage vs. a dedicated image CDN (Cloudinary/
+19. **Photo→tile POC first:** run a small proof-of-concept on the test tailor's
+    photos (he shared a subset, via photos → categorization needed), then work
+    with him to settle the right mix/accuracy bar and the human-confirm step
+    before a tile goes live. Which vision model?
+20. **Media storage:** Supabase Storage vs. a dedicated image CDN (Cloudinary/
     imgix) for transforms + mobile optimization.
 
 ## Auth / roles
-20. **Multi-role accounts:** confirm a single login can hold multiple roles
+21. **Multi-role accounts:** confirm a single login can hold multiple roles
     (customer + tailor) and how the UI switches context.
-21. **Admin surface scope:** what the admin console must do at launch
-    (verify tailors, resolve disputes, moderate media, release payouts).
+22. **Admin surface scope:** what the admin console must do at launch
+    (verify tailors, moderate media/tiles; disputes + payout release arrive
+    with Phase 2 payments).
 
 ## Local finishers
 22. **Funding model:** platform-funded (from held payout), customer-paid, or

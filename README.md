@@ -32,24 +32,34 @@ customer confirms fit/receipt where possible). The tailor manufactures and
 ships direct to the customer as the importer of record. A separate network of
 **local finishing tailors** handles minor alterations after delivery.
 
-## Locked direction (v2 of the plan)
+## Locked direction
 
+- **Build order: app + auth + the loop first, payments/tax second.** Prove the
+  configure-and-order loop end to end with a **test order (no money)**, then
+  wire Stripe. Auth is the first thing built.
 - **Mobile-first / iPhone-first** responsive web (PWA-ready), not native apps.
 - **US customers only at launch**; schema and flows built to scale beyond the US.
-- **Stripe** for payments and tax; a **separate research workstream** resolves
-  US marketplace sales-tax obligations and the take-rate break-even.
 - **Role-based auth** (customer / tailor / admin; finisher later), scaffolded
   from day one, enabled progressively.
-- **Customer-selected shipping speed** from tailor-enabled options; tailor
-  enters the tracking number after drop-off.
+- **Launch garment types: suits, shirts, pants** — selectable per shop (pants
+  work standalone or in a suit). Custom garments/options come later; the model
+  is extensible from day one.
+- **Standardized measurements** at launch; tailor-custom measurement asks and
+  AR plug into the same extensible schema later.
+- **Type → material pricing tie-through** designed now (a suit uses more fabric
+  than a shirt), simplest version shipped in MVP.
+- **Tailor-owned flat-rate shipping** (by item count/type — they quote it);
+  tailor enters the tracking number after drop-off.
+- **Stripe** for payments and tax (Phase 2); a **separate research workstream**
+  resolves US marketplace sales-tax obligations and the take-rate break-even.
 - Seeded by a **committed unpaid test tailor** (measurement videos, cuts,
-  material photos), with an **AI photo→"tile"** pipeline turning raw material
-  photos into clean selection swatches.
+  material photos), with an **AI photo→"tile"** pipeline (POC first) turning raw
+  material photos into clean selection swatches.
 
 ## Status
 
-- [x] Plan drafted and refined (round 2)
-- [ ] US tax + break-even research (separate workstream)
+- [x] Plan drafted and refined (round 3)
+- [ ] Phase 1 scaffolded: app + auth/roles/RLS + shop + configurator (test order)
+- [ ] US tax + break-even research (separate workstream, feeds Phase 2)
+- [ ] Payments (Stripe Connect) + tax wired (Phase 2)
 - [ ] Key legal decisions resolved (see open questions)
-- [ ] MVP scope locked
-- [ ] Tech foundation scaffolded (auth/roles/RLS first)

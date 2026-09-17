@@ -61,11 +61,19 @@ low-friction alteration jobs.
 - **Materials/fabric library:** photos of fabrics the tailor stocks or can
   source — wool, linen, cotton, blends, linings — each with attributes
   (composition, weight/GSM, color, pattern, price tier, availability).
-- **Cut/option definitions:** the tailor declares what they can make and the
-  choices they offer (e.g. suit → 1/2/3-button, lapel type, vents, lining
-  color, monogram). This is what powers the customer's configurator.
-- **Pricing model:** base price per garment type + fabric price tier +
-  option modifiers. Keep it structured so totals are computable, not chat-only.
+- **Garment types the shop offers:** a **selectable configuration** when
+  setting up the shop. At launch the choices are **suits, shirts, and pants**
+  (pants behave the same standalone or as part of a suit). A tailor enables the
+  types they make; later phases let them add **custom items/garment designs**
+  (§3.4).
+- **Cut/option definitions:** for each enabled garment type, the tailor
+  declares the choices they offer (e.g. suit → 1/2/3-button, lapel type, vents,
+  lining color, monogram). This powers the customer's configurator. Full custom
+  options come in a later phase.
+- **Pricing model:** base price per garment type + **fabric/material price
+  (tied through as the material is chosen)** + option modifiers. Keep it
+  structured so totals are computable, not chat-only. See §4 for the
+  type→material pricing tie-through.
 - **Order management:** incoming orders, measurement sheets, status updates
   (accepted → in production → shipped → delivered), messaging with customer.
 
@@ -82,9 +90,9 @@ low-friction alteration jobs.
   3. Selects cut and options (defined by the tailor).
   4. Sees a **live running total** and estimated turnaround.
   5. Enters/attaches **measurements** (see §5).
-  6. **Chooses a shipping speed** from the options the tailor has enabled
-     (see §4.1), which adds to the total and sets the delivery estimate.
-  7. Places the order → payment.
+  6. **Chooses a shipping option** (flat-rate, tailor-set — see §4.1), which
+     adds to the total and sets the delivery estimate.
+  7. Places the order → (test order at launch; payment added in a later phase).
 - **Order tracking & messaging** with the tailor.
 - **Post-delivery:** confirm fit, leave a review, or request an alteration via
   the local-finisher network (§6).
@@ -94,10 +102,23 @@ One account system, **role-based**: `customer`, `tailor`, `admin` (and
 `finisher` later). A single person can hold more than one role (a customer who
 is also a tailor). The experience differs by role — customers browse/build/buy,
 tailors manage a shop and orders, admins verify tailors and resolve disputes.
-Build the role-aware auth **into the foundation from day one** even though the
-tailor and admin surfaces are switched on only once the core app works; it must
-be transferable to a scalable platform, not bolted on later. Mechanics in
+Build the role-aware auth **into the foundation from day one** — it is the
+**first thing built** and everything sits on it. The app + auth + core loop are
+validated *before* real payments and tax are wired (see roadmap); it must be
+transferable to a scalable platform, not bolted on later. Mechanics in
 architecture §2.1.
+
+### 3.4 Garment types & customization (staged)
+- **Launch:** three standardized garment types — **suits, shirts, pants** —
+  that a tailor turns on per shop. Pants are a first-class type that works both
+  standalone and as the trouser component of a suit (same definition either
+  way).
+- **Later phases:** tailors can add **custom items / garment designs** and
+  **full custom option sets** beyond the standard three — so the platform grows
+  from a fixed catalog into an open design surface without reworking the core.
+- **Design now, ship later:** the garment-type / option / pricing model is
+  built to be *extensible* from day one (types are data, not hardcoded), even
+  though only the three standard types are enabled at launch.
 
 ## 4. Marketplace mechanics & business model
 
@@ -118,26 +139,41 @@ architecture §2.1.
   Terms of Service and *cannot* fully offload marketplace-facilitator tax
   obligations — see §7.
 
-### 4.1 Shipping (customer-selected speed + tailor tracking)
-- **Tailor enables shipping options** in their shop: carrier + service +
-  transit window + price (e.g. "DHL Express — 7 days — $X"). A tailor may offer
-  several (e.g. economy vs. express).
-- **Customer selects the shipping speed** during checkout from what that tailor
-  enabled; the choice sets the price add-on and the delivery estimate, and is
-  frozen onto the order.
-- **Tailor enters the tracking number** after drop-off (carrier +
-  tracking #). This moves the order to *shipped*, gives the customer a live
-  tracking link, and — combined with delivery/fit-confirmation — triggers the
-  final staged payout release (§7).
+### 4.0 Pricing tie-through (garment type → material → options)
+Price is computed by chaining choices, and it must update live as the customer
+builds:
+1. **Garment type** sets a base (a suit costs more than a shirt).
+2. **Material** selection ties into the price — different fabrics carry
+   different prices/tiers, and the price can also depend on *how much* fabric
+   the chosen garment type needs (a suit uses more than a shirt). So the same
+   fabric can contribute differently depending on the garment.
+3. **Options/cuts** add modifiers (lining, monogram, extra trouser, etc.).
+This type→material tie-through is a **scalable design requirement now** (the
+model must support it) even if the MVP uses the simplest version — flat per-type
+base + per-material price + option modifiers — before adding fabric-consumption
+math. Keep it structured so totals are always computable, never chat-only.
+
+### 4.1 Shipping (tailor-owned, flat-rate, tailor tracking)
+- **The tailor owns shipping and quotes the cost.** They ship (DHL etc.) and
+  they set the price — they know they can often ship a lot via DHL for ~$70.
+- **Flat rate by item count / item type.** Keep it simple: the tailor sets flat
+  shipping prices keyed to number of items and/or item type (e.g. "1 garment =
+  $X, each additional = $Y"), rather than live carrier rates. The customer sees
+  the resulting flat shipping cost at checkout; it's frozen onto the order.
+  (Live carrier rates and who-eats-the-difference are explicitly *not* an MVP
+  problem — see open questions.)
+- **Tailor enters the tracking number** after drop-off (carrier + tracking #).
+  This moves the order to *shipped*, gives the customer a live tracking link,
+  and — combined with delivery/fit-confirmation — triggers the final staged
+  payout release (§7).
 - **Shipping is the tailor's responsibility**, shipped DDU/"recipient pays
   duties" by default so the *customer* is the importer of record. The customer
   must see this clearly at checkout (item + shipping + tax, plus "you may owe
   import duties on delivery"). Surprise customs bills are a top churn/dispute
   driver — surface it early and honestly.
 - **Fee transparency:** show the customer one clear breakdown (item, shipping,
-  tax); show the tailor exactly what they net. Decide explicitly whether the
-  platform fee is charged on the shipping portion (recommended: no — see
-  architecture §3).
+  tax); show the tailor exactly what they net. Platform fee is charged on the
+  item, **not** the shipping the tailor quoted (see architecture §3).
 
 ## 5. Measurements (the make-or-break detail)
 
@@ -157,21 +193,28 @@ measurement videos inform the guided wizard. Expect to iterate on *how we
 represent* what he gave us; the inputs themselves are settled.
 
 ### 5.2 Phasing
-Phased, because AR is a later luxury, not a v1 requirement:
+Phased, because AR is a later luxury, not a v1 requirement. Crucially, launch
+with **standardized measurements** and make the model extensible so tailors can
+add their own asks later — the same extensibility AR plugs into.
 
-- **Phase 1 — guided manual entry.** A structured, illustrated measurement
-  wizard per garment type (chest, waist, sleeve, inseam, etc.) with photo/video
-  instructions and a "have a friend help / visit any local tailor to measure"
-  prompt. Store measurements as a reusable **measurement profile** on the
-  customer account.
-- **Phase 1.5 — measurement assist.** Let customers upload a reference (an
-  existing well-fitting garment's measurements) — often more reliable than
-  body measurements for MTM.
-- **Phase 2 — fit confirmation loop.** Tailor reviews submitted measurements
-  and can flag/query before cutting. Reduces the worst failure mode.
-- **Phase 3 — AR/photo measurement.** Integrate or build a computer-vision
-  body-measurement tool. Evaluate 3rd-party SDKs before building. This is a
-  differentiator, not a dependency.
+- **Launch — standardized guided entry.** A structured, illustrated measurement
+  wizard with a **standard set of measurements per garment type** (chest, waist,
+  sleeve, inseam, etc.), with photo/video instructions and a "have a friend
+  help / visit any local tailor to measure" prompt. Store as a reusable
+  **measurement profile** on the customer account. Same standard set for every
+  tailor at launch — simpler for customers and comparable across shops.
+- **Later — measurement assist.** Let customers upload a reference (an existing
+  well-fitting garment's measurements) — often more reliable than body
+  measurements for MTM.
+- **Later — fit confirmation loop.** Tailor reviews submitted measurements and
+  can flag/query before cutting. Reduces the worst failure mode.
+- **Later — tailor-custom measurements.** A tailor can add **their own custom
+  measurement asks** (beyond the standard set) that make their output better.
+  This uses the same extensible measurement model — build the schema for it now,
+  enable it later.
+- **Later — AR/photo measurement.** Integrate or build a computer-vision
+  body-measurement tool that populates the (now extensible) measurement schema.
+  Evaluate 3rd-party SDKs before building. A differentiator, not a dependency.
 - **Fit guarantee / remake policy.** A defined remake-or-alteration policy
   (partly funded by a held portion of payout, partly by the local-finisher
   network) is what makes buying a $300 suit sight-unseen feel safe. Design this
