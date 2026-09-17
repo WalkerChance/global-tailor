@@ -82,33 +82,81 @@ low-friction alteration jobs.
   3. Selects cut and options (defined by the tailor).
   4. Sees a **live running total** and estimated turnaround.
   5. Enters/attaches **measurements** (see §5).
-  6. Places the order → payment.
+  6. **Chooses a shipping speed** from the options the tailor has enabled
+     (see §4.1), which adds to the total and sets the delivery estimate.
+  7. Places the order → payment.
 - **Order tracking & messaging** with the tailor.
 - **Post-delivery:** confirm fit, leave a review, or request an alteration via
   the local-finisher network (§6).
 
+### 3.3 Accounts & roles (scaffold now, enable progressively)
+One account system, **role-based**: `customer`, `tailor`, `admin` (and
+`finisher` later). A single person can hold more than one role (a customer who
+is also a tailor). The experience differs by role — customers browse/build/buy,
+tailors manage a shop and orders, admins verify tailors and resolve disputes.
+Build the role-aware auth **into the foundation from day one** even though the
+tailor and admin surfaces are switched on only once the core app works; it must
+be transferable to a scalable platform, not bolted on later. Mechanics in
+architecture §2.1.
+
 ## 4. Marketplace mechanics & business model
 
+> **Launch scope: US customers only.** Everything below is modeled to scale to
+> the UK/EU later, but v1 enables the US corridor only (tailors anywhere →
+> customers in the US). This keeps shipping, tax, and support tractable.
+> The app is **mobile-first / iPhone-first** — the whole configure-and-checkout
+> flow must feel native on a phone.
+
 - **Revenue:** platform fee = a small % of each sale (a "facilitation fee"),
-  deducted at payout. Model both a **buyer-side** and **seller-side** split
-  later; start with a single seller-side take rate for simplicity
-  (illustratively 8–15% — validate against payment-processing costs, which are
-  material on cross-border card payments).
+  deducted at payout. Model buyer-side vs. seller-side split later; start with a
+  single seller-side take rate. **The exact rate is set only after the tax/fee
+  break-even research** (a dedicated workstream — see §7 and open questions),
+  not guessed up front.
 - **The contract is customer↔tailor.** The platform is an intermediary/agent,
   not the seller of record. This is a deliberate legal posture (limits product
   liability and import-of-record duties) but it must be reflected accurately in
   Terms of Service and *cannot* fully offload marketplace-facilitator tax
   obligations — see §7.
-- **Shipping is the tailor's responsibility**, priced into or added onto the
-  order, shipped DDU/"recipient pays duties" by default so the *customer* is
-  the importer of record. The customer must see this clearly at checkout (total
-  price + "you may owe local duties/VAT on delivery"). Surprise customs bills
-  are a top churn/dispute driver — surface it early and honestly.
-- **Fee transparency:** show the customer one clear price; show the tailor
-  exactly what they net.
+
+### 4.1 Shipping (customer-selected speed + tailor tracking)
+- **Tailor enables shipping options** in their shop: carrier + service +
+  transit window + price (e.g. "DHL Express — 7 days — $X"). A tailor may offer
+  several (e.g. economy vs. express).
+- **Customer selects the shipping speed** during checkout from what that tailor
+  enabled; the choice sets the price add-on and the delivery estimate, and is
+  frozen onto the order.
+- **Tailor enters the tracking number** after drop-off (carrier +
+  tracking #). This moves the order to *shipped*, gives the customer a live
+  tracking link, and — combined with delivery/fit-confirmation — triggers the
+  final staged payout release (§7).
+- **Shipping is the tailor's responsibility**, shipped DDU/"recipient pays
+  duties" by default so the *customer* is the importer of record. The customer
+  must see this clearly at checkout (item + shipping + tax, plus "you may owe
+  import duties on delivery"). Surprise customs bills are a top churn/dispute
+  driver — surface it early and honestly.
+- **Fee transparency:** show the customer one clear breakdown (item, shipping,
+  tax); show the tailor exactly what they net. Decide explicitly whether the
+  platform fee is charged on the shipping portion (recommended: no — see
+  architecture §3).
 
 ## 5. Measurements (the make-or-break detail)
 
+### 5.1 Our baseline: a real test tailor
+We have a **committed test tailor** (unpaid, no fees charged) who has already
+supplied a real-world baseline dataset:
+- **Measurement videos** showing his preferred measurement method.
+- **A set of cuts** he offers.
+- **Photos of materials** he stocks.
+
+This is the seed for the whole v1: it's the first shop, the first fabric
+library, the first option/cut set, and the reference for the measurement UX.
+The near-term job is to **turn these raw inputs into structured, reusable
+platform data** — his material photos become normalized selection **tiles**
+(architecture §4.3), his cuts become `option_groups`/`option_values`, and his
+measurement videos inform the guided wizard. Expect to iterate on *how we
+represent* what he gave us; the inputs themselves are settled.
+
+### 5.2 Phasing
 Phased, because AR is a later luxury, not a v1 requirement:
 
 - **Phase 1 — guided manual entry.** A structured, illustrated measurement
@@ -155,24 +203,27 @@ This is where well-intentioned marketplaces get hurt. Treat these as first-class
   specs, and staged payouts.
 - **KYC/AML on tailors.** Handled largely by the payments provider (Stripe
   Connect Custom/Express onboarding), but the platform owns the policy.
-- **Marketplace-facilitator tax reality (get advice — this is the big one).**
-  - *US:* many states have "marketplace facilitator" laws that can require the
-    *platform* to collect/remit **sales tax** even though the tailor is the
-    seller and ships from abroad. "The tailor is the importer" does not, by
-    itself, remove this.
-  - *UK/EU:* **VAT/IOSS** rules for imported goods and for online marketplaces
-    can make the *platform* the deemed supplier/collector in some low-value
-    import scenarios. Again, independent of who physically ships.
-  - **Action:** the "I don't want to touch import/export tax yet" goal is
-    achievable for *duties on the physical garment* (customer as importer of
-    record, DDU shipping) — but *platform-level* sales-tax/VAT collection is a
-    separate question that needs a tax advisor before launch, per target
-    market. Don't architect the payment flow in a way that's impossible to add
-    tax collection to later. See `docs/open-questions.md`.
-- **Consumer protection / distance-selling.** UK/EU distance-selling and
-  consumer-rights rules have carve-outs for *bespoke/personalized* goods (often
-  not returnable) — useful, but must be disclosed correctly. US state consumer
-  law varies. ToS and refund policy need legal review.
+- **Marketplace-facilitator tax reality — US launch (dedicated research
+  workstream).** Stripe is the right tool to *collect/remit* (Stripe Tax); the
+  open question is *where and how much*.
+  - *US (in scope now):* many states have "marketplace facilitator" laws that
+    can require the *platform* to collect/remit **sales tax** even though the
+    tailor is the seller and ships from abroad. "The tailor is the importer"
+    does not, by itself, remove this.
+  - *UK/EU (later):* **VAT/IOSS** rules can make the platform the deemed
+    supplier/collector — noted for scale, out of scope for v1.
+  - **Action:** run a **separate deep-dive (its own chat)** on US marketplace
+    sales-tax obligations *and* compute the **break-even of take-rate vs. tax +
+    processing cost**, so the fee is set on real numbers. The founder's "I don't
+    want to touch import/export tax yet" goal is achievable for *duties on the
+    physical garment* (customer as importer of record, DDU shipping); the
+    *platform-level* sales-tax collection is the piece this research resolves.
+    Architect Stripe/PaymentIntent so the tax line already exists. See
+    `docs/open-questions.md`.
+- **Consumer protection / distance-selling.** US state consumer law varies
+  (in scope at launch); UK/EU distance-selling carve-outs for
+  *bespoke/personalized* goods come later. ToS and refund policy need legal
+  review before launch.
 - **Prohibited/quality risk.** Counterfeit-brand requests, IP (logos), and
   quality fraud. Content moderation + a takedown path.
 

@@ -4,16 +4,26 @@ This is a recommended starting architecture optimized for a small team shipping
 an MVP fast, with room to grow. Nothing here is load-bearing forever; it's a
 sensible default, and alternatives are noted.
 
+> **Guiding constraints (from product direction):**
+> - **Mobile-first, iPhone-first.** The primary experience is a phone browser
+>   (Safari/iOS). Design and test at iPhone widths first; desktop is the
+>   enhancement, not the reverse. See §8.
+> - **US-only at launch, built to scale internationally.** Every schema and
+>   flow (currency, country, tax, shipping) is modeled to *support* other
+>   markets, but only the US corridor is enabled in v1. Don't hardcode
+>   "US-only" assumptions that a later market would have to unwind.
+
 ## 1. Stack recommendation
 
 | Layer | Recommendation | Why / alternatives |
 |---|---|---|
-| Frontend | **Next.js (App Router) + React + TypeScript**, Tailwind CSS | SEO matters for shop discovery (SSR/ISR); one framework for marketing + app. |
+| Frontend | **Next.js (App Router) + React + TypeScript**, Tailwind CSS, **mobile-first / PWA-ready** | SEO matters for shop discovery (SSR/ISR); one framework for marketing + app. Responsive web on iPhone first; a PWA install path before any native app. |
 | Hosting | **Vercel** | First-class Next.js, previews, edge. Alt: any Node host. |
 | Backend/API | Next.js route handlers / server actions to start; extract services later | Avoid premature microservices. |
 | Database + Auth + Storage | **Supabase (Postgres + Auth + Storage + RLS)** | One managed platform: relational data (essential for the configurator), auth, image storage, row-level security. Alt: separate Postgres + Auth0 + S3. |
-| Payments | **Stripe Connect** (+ Stripe Tax when tax is in scope) | The standard for marketplace pass-through payouts, KYC, held funds, split payments. See §3. |
-| Media | Supabase Storage or a dedicated image CDN (Cloudinary/imgix) | Fabric/garment photos are the product — need transforms, optimization. |
+| Payments | **Stripe Connect + Stripe Tax** (US sales tax at launch) | The standard for marketplace pass-through payouts, KYC, held funds, split payments. Tax handled by Stripe; the *what/where* is a separate research workstream (see §3 + open questions). |
+| Media | Supabase Storage or a dedicated image CDN (Cloudinary/imgix) | Fabric/garment photos are the product — need transforms, optimization. Store URLs/links in DB, not blobs. See §4. |
+| AI (photo → "tiles") | Vision model to normalize tailor-supplied material photos into clean selection tiles + extracted attributes | Turns messy real-world inputs (our test tailor's photos) into a consistent swatch UI. See §4. |
 | Search | Postgres full-text + filters to start; **Typesense/Meilisearch** when facets grow | Don't reach for Elasticsearch on day one. |
 | Messaging | Postgres-backed threads + Supabase Realtime | Customer↔tailor chat. Email/notification fallback. |
 | Transactional email/SMS | Resend/Postmark + Twilio (later) | Order updates, disputes. |
@@ -28,10 +38,15 @@ document store would fight you.
 Core entities and key relationships. Names illustrative.
 
 ```
-users
-  id, role(customer|tailor|admin|finisher), email, name, locale, country, created_at
+users                      (identity — maps to Supabase auth.users)
+  id, email, name, locale, country, created_at
+  -- role is NOT a column here; see user_roles (a user can hold >1 role)
 
-tailor_profiles            (1:1 users where role=tailor)
+user_roles                 (role-based access, scalable)
+  user_id, role(customer|tailor|admin|finisher), granted_at, granted_by
+  -- one row per (user, role). Drives auth/authorization + RLS. See §2.1.
+
+tailor_profiles            (1:1 users holding role=tailor)
   user_id, shop_name, slug, bio, location_country, location_city,
   languages[], turnaround_days, verification_status, stripe_account_id, rating_avg
 
@@ -41,27 +56,50 @@ customers
 garment_types              (platform taxonomy, shared)
   id, name(suit|shirt|trousers|...), base_measurement_schema (json)
 
+media                      (single source of truth for all images/video)
+  id, owner_user_id, kind(fabric|garment|sample|measurement_video|evidence|other),
+  storage_path, public_url, mime_type, width, height, alt_text,
+  ai_status(none|pending|done|failed), created_at
+  -- store URLs/links, not blobs. Every photo the tailor gives us lands here.
+
 fabrics                    (belongs to a tailor)
   id, tailor_id, name, composition, weight_gsm, color, pattern,
-  price_tier, price_amount, currency, availability, images[]
+  price_tier, price_amount, currency, availability,
+  source_media_id (raw photo),           -- what the tailor uploaded
+  tile_media_id (nullable),              -- clean, normalized "tile" for the picker
+  ai_attributes(json)                    -- vision-extracted color/pattern/material
+  -- "tile" = the swatch shown in the material selector (see §4.3)
 
 option_groups              (belongs to a tailor + garment_type)  e.g. "Lapel"
   id, tailor_id, garment_type_id, name, required, multi_select
 option_values              (belongs to option_group)             e.g. "Peak"
-  id, option_group_id, name, price_modifier
+  id, option_group_id, name, price_modifier, media_id (nullable)
 
 samples                    (portfolio items, belongs to tailor)
-  id, tailor_id, garment_type_id, title, description, images[]
+  id, tailor_id, garment_type_id, title, description, media_ids[]
+
+shipping_options           (per tailor: carriers/speeds they offer)
+  id, tailor_id, carrier(DHL|FedEx|UPS|EMS|...), service_name,
+  min_days, max_days, price_amount, currency, destination_countries[], active
+  -- powers the customer's "select shipping speed" choice at checkout
 
 measurement_profiles       (belongs to customer, reusable)
-  id, customer_id, label, garment_type_id, values(json), source(manual|garment|ar)
+  id, customer_id, label, garment_type_id, values(json),
+  source(manual|garment|video|ar), source_media_id (nullable)
 
 orders
   id, customer_id, tailor_id, garment_type_id, status,
   fabric_selections(json), option_selections(json),
-  measurement_snapshot(json),           -- snapshot, not a live reference
-  price_breakdown(json), subtotal, platform_fee, shipping_amount, total, currency,
+  measurement_snapshot(json),            -- snapshot, not a live reference
+  shipping_option_snapshot(json),        -- chosen carrier/speed, frozen
+  subtotal, platform_fee, shipping_amount, tax_amount, total, currency,
   stripe_payment_intent_id, created_at
+
+shipments                  (fulfillment: tailor-entered tracking)
+  id, order_id, carrier, tracking_number, tracking_url,
+  shipped_at, est_delivery_date, delivered_at, status
+  -- tailor plugs in the tracking number after drop-off; drives delivery status
+  --   and (with fit-confirm) the final payout release
 
 order_events               (status history / audit)
   id, order_id, type, payload(json), created_at
@@ -70,7 +108,7 @@ payouts
   id, order_id, tailor_id, stripe_transfer_id, amount, status(held|released|reversed), released_at
 
 messages
-  id, order_id(nullable), from_user, to_user, body, attachments[], created_at
+  id, order_id(nullable), from_user, to_user, body, media_ids[], created_at
 
 reviews
   id, order_id, customer_id, tailor_id, rating, body, created_at
@@ -85,17 +123,48 @@ alteration_jobs
   id, order_id, finisher_id, status, cost, funded_by(platform|customer|split)
 ```
 
+### 2.1 Role-based auth (build the scaffolding now, enable later)
+
+Authentication and authorization are **role-based from day one**, even though
+the full multi-role experience is switched on only once the core app works.
+Getting this into the foundation is far cheaper than retrofitting it.
+
+- **Roles:** `customer`, `tailor`, `admin` at launch; `finisher` reserved for
+  the local-alteration network later.
+- **Model roles in their own table** (`user_roles`), not as a single column on
+  `users`. A person may legitimately be both a customer and a tailor; admins
+  are just users with the `admin` role. This avoids a painful migration later.
+- **One auth system, Supabase Auth**, with role claims surfaced into the JWT
+  (via a custom access-token hook) so both the app and Postgres **RLS**
+  policies can authorize by role.
+- **RLS enforces it in the database:** a tailor can read/write only their own
+  shop, fabrics, options, and orders; a customer only their own orders and
+  measurements; an admin has elevated policies. Enforce at the DB layer so a
+  bug in app code can't leak another shop's data.
+- **Route/layout gating in Next.js:** role-aware layouts (`/shop/*` tailor
+  console, `/account/*` customer, `/admin/*`) behind middleware that checks the
+  role claim. Ship the customer flow first; keep the tailor and admin routes
+  behind a flag until enabled.
+- **Transferable/scalable:** because roles are data (not hardcoded branches),
+  adding `finisher` or a future `wholesale_buyer` is a row + policies, not a
+  refactor.
+
 **Design notes**
 - **Snapshot the order.** `orders` stores a *copy* of the chosen fabrics,
   options, prices, and measurements at purchase time. Never render an order
   from live fabric/option rows — the tailor may change prices or retire a
   fabric later, and disputes require the frozen spec.
 - **Money as integer minor units + currency code**, everywhere. Never floats.
-- **Multi-currency:** tailors may price in their currency or a settlement
-  currency; decide the FX/display policy early (see open questions).
-- **RLS from the start** (Supabase): a tailor sees only their shop/orders; a
-  customer sees only their orders; admins see all. Get this right before any
-  real data exists.
+- **US-only launch, scale-ready schema.** Prices, tax, and shipping carry a
+  `currency` and country from day one even though only USD/US is enabled. Don't
+  bake "always USD / always US" into logic — gate it with config/feature flags
+  so a second market is data, not a rewrite.
+- **Multi-currency (later):** tailors may eventually price in their currency or
+  a settlement currency; decide the FX/display policy when the second market
+  arrives (see open questions). For US launch, settle in USD.
+- **RLS from the start** (Supabase), driven by `user_roles`: a tailor sees only
+  their shop/orders; a customer only their own; admins have elevated policies.
+  Get this right before any real data exists.
 
 ## 3. Payment flow (Stripe Connect)
 
@@ -118,23 +187,54 @@ Recommended shape:
    the buffer.
 5. **Webhooks** drive order state (payment succeeded, dispute opened, transfer
    paid). Handle idempotently.
-6. **Tax:** if/when marketplace-facilitator sales tax or VAT is in scope,
-   **Stripe Tax** can compute/collect at checkout — but *whether* you must is a
-   legal question, not a technical one (open questions). Architect the
-   PaymentIntent so a tax line can be added without reworking the flow.
+6. **Shipping in the total.** The customer's chosen `shipping_option`
+   (carrier + speed, from what the tailor enabled) adds `shipping_amount` to
+   the PaymentIntent. The shipping fee flows to the tailor (who actually ships)
+   as part of their transfer, not the platform's fee base — decide this
+   explicitly so the take rate isn't quietly charged on shipping.
+7. **Tax (US sales tax at launch, via Stripe Tax).** Stripe Tax computes and
+   collects `tax_amount` at checkout. **Whether/where** the platform must
+   collect (marketplace-facilitator rules by state) is a **separate research
+   workstream** — do it in a dedicated chat and compute the break-even of
+   take-rate vs. tax/processing cost before setting the fee. Architect the
+   PaymentIntent so the tax line is already present (US) and extends to
+   VAT/IOSS later without reworking the flow.
 
-**Currency & fees:** cross-border card + FX + Connect fees are non-trivial and
-eat into a "small %" take rate. Model unit economics before setting the rate.
+**Fees & break-even:** card + Connect + Stripe Tax fees eat into a "small %"
+take rate. The take rate must be set *after* the tax/fee research, not before.
+Until then, treat the rate as a placeholder (see open questions).
 
-## 4. Media handling
+## 4. Media handling & the "tiles" pipeline
 
-- Fabric and garment images are the core UX. Enforce upload guidelines (min
-  resolution, neutral background for fabrics), generate responsive/optimized
-  variants, lazy-load.
-- Store originals in object storage; serve via CDN with on-the-fly transforms.
-- Consider color-accuracy guidance for fabrics (screens lie) — a known trust
-  gap in online tailoring; a "colors may vary / request a swatch" affordance
-  helps.
+### 4.1 Storage
+- Fabric and garment images are the product. Store **originals in object
+  storage** (Supabase Storage / CDN) and keep only **URLs/links in the DB**
+  (the `media` table) — never blobs in Postgres.
+- Serve via CDN with on-the-fly transforms; generate responsive/optimized
+  variants; lazy-load. Optimize hard for mobile/iPhone bandwidth.
+- Color-accuracy guidance for fabrics (screens lie) — a "colors may vary /
+  request a swatch" affordance is a real trust feature.
+
+### 4.2 Everything the tailor gives us becomes a `media` row
+Our test tailor supplied **measurement videos, cut references, and material
+photos** in raw form (see product-plan §5.1). Each lands as a `media` row with
+a `kind`, so measurement videos, sample garments, and fabric photos are all
+addressable, linkable, and surfaced in-app from one place.
+
+### 4.3 Photo → "tile" AI translation
+Raw material photos aren't a clean UI. A **"tile"** is the normalized swatch
+shown in the material selector. Pipeline:
+1. Tailor uploads a raw fabric photo → `media` row (`ai_status=pending`).
+2. A vision model (async job) crops/normalizes it into a clean, consistent
+   swatch tile and **extracts attributes** (dominant color, pattern type,
+   apparent material/weave) into `fabrics.ai_attributes`.
+3. Output tile stored as its own `media` row, referenced by
+   `fabrics.tile_media_id`; `ai_status=done`.
+4. **Human-in-the-loop:** the tailor (or an admin) confirms/edits the extracted
+   attributes and the tile before it goes live — AI proposes, human approves.
+   Never publish an unreviewed AI tile as fact about a real product.
+This gives a uniform material-selection grid regardless of how messy the
+source photos were, and the extracted attributes power "shop by material."
 
 ## 5. Search & discovery
 
@@ -149,15 +249,19 @@ eat into a "small %" take rate. Model unit economics before setting the rate.
 
 - Separate Supabase projects / Stripe keys per environment (dev/staging/prod).
 - Secrets in the host's env store; never in the repo.
-- PII: measurements + addresses are personal data — GDPR/UK-GDPR apply given
-  EU/UK customers. Data-processing records, deletion path, minimal retention.
+- PII: measurements + addresses are personal data. US launch → US state
+  privacy laws (e.g. CCPA/CPRA) apply; build the deletion path + minimal
+  retention now so GDPR/UK-GDPR are a config away when EU/UK go live.
 - Audit trail on orders, payouts, and disputes (`order_events`) — you'll need
   it for chargebacks and support.
 - Observability: error tracking (Sentry), payment-webhook alerting.
 
 ## 7. What NOT to build yet
 
-- Native mobile apps (responsive web first).
+- Native iOS/Android apps — **mobile-first responsive web (iPhone) + PWA**
+  first; a native app only if the web PWA proves limiting.
 - The AR measurement tool (integrate/evaluate later — measurement wizard first).
 - A full second marketplace for local finishers (concierge/manual first).
+- Non-US markets, multi-currency FX, VAT/IOSS — schema is ready for them, but
+  don't *enable* them in v1.
 - Microservices, custom search infra, multi-region DB. All premature.
