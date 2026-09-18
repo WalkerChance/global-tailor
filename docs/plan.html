@@ -299,7 +299,8 @@
       <span class="chip">US-only launch · scale-ready</span>
       <span class="chip">Role-based auth</span>
       <span class="chip">Suits · Shirts · Pants</span>
-      <span class="chip">Standardized measurements</span>
+      <span class="chip">Reusable customer profile</span>
+      <span class="chip">Measure = confirm/adjust</span>
       <span class="chip">Type→material pricing</span>
       <span class="chip">Flat-rate shipping</span>
       <span class="chip brass">Stripe · Phase 2</span>
@@ -328,7 +329,8 @@
         </div>
         <div class="step">
           <span class="idx">3</span>
-          <div><h3>Measure</h3><p>A standardized, illustrated wizard per garment type. Saved as a reusable measurement profile. Tailor-custom asks and AR plug into the same schema later.</p></div>
+          <div><h3>Confirm measurements <span class="tag">· not blank-slate</span></h3>
+            <p>A standardized wizard, <b>prefilled from the saved profile and guided by the tailor's method</b> — the customer confirms or adjusts, they don't guess. The tailor can review and propose adjustments before cutting. AR plugs into the same schema later.</p></div>
         </div>
         <div class="step">
           <span class="idx">4</span>
@@ -508,12 +510,16 @@
           <div class="ents"><span class="ent">users</span><span class="ent new">user_roles</span><span class="ent">RLS policies</span></div>
         </div>
         <div class="spec-row">
+          <div class="grp"><span class="sq"></span>Customer profile</div>
+          <div class="ents"><span class="ent">customers</span><span class="ent">shipping_addresses</span><span class="ent">measurement_profiles</span><span class="ent new">preferences · post-MVP</span></div>
+        </div>
+        <div class="spec-row">
           <div class="grp"><span class="sq"></span>Shop &amp; catalog</div>
           <div class="ents"><span class="ent">tailor_profiles</span><span class="ent new">garment_types</span><span class="ent new">shop_garment_types</span><span class="ent">fabrics</span><span class="ent new">garment_fabric_pricing</span><span class="ent">option_groups</span><span class="ent">option_values</span><span class="ent">samples</span><span class="ent">media</span></div>
         </div>
         <div class="spec-row">
           <div class="grp"><span class="sq"></span>Measurement</div>
-          <div class="ents"><span class="ent new">measurement_fields</span><span class="ent">measurement_profiles</span></div>
+          <div class="ents"><span class="ent new">measurement_fields</span><span class="ent new">order_measurement_reviews</span></div>
         </div>
         <div class="spec-row">
           <div class="grp"><span class="sq"></span>Ordering &amp; fulfillment</div>

@@ -34,12 +34,17 @@ Must-haves:
   samples, fabric library (with **photo→tile** normalized swatches), cut/option
   definitions, structured pricing, and **flat-rate shipping by item
   count/type**.
+- **Customer profile:** name, contact, shipping address(es), and saved
+  measurements — reusable across orders (preferences field exists but its UI is
+  post-MVP).
 - Discovery: browse by shop / cut / material, with basic filters + SSR for SEO.
 - **Garment configurator** with live pricing, **type→material pricing
   tie-through** (see product-plan §4), turnaround estimate, and customer-
   selected shipping option.
-- **Standardized measurement wizard** per garment type + reusable measurement
-  profile (informed by the test tailor's videos).
+- **Measurement step as confirm/adjust:** a standardized wizard per garment type
+  prefilled from the saved profile and guided by the tailor's method (informed
+  by the test tailor's videos) — not blank-slate entry. Tailor review/propose-
+  adjust before cutting is a near-term follow-on.
 - Order object + status flow + customer↔tailor messaging — created as a **test
   order** to exercise the loop. This is **purely UI/flow validation: no charge
   and no tailor engagement** (the tailor does not cut cloth or act on it).

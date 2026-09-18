@@ -54,8 +54,15 @@ tailor_profiles            (1:1 users holding role=tailor)
   user_id, shop_name, slug, bio, location_country, location_city,
   languages[], turnaround_days, verification_status, stripe_account_id, rating_avg
 
-customers
-  user_id, default_shipping_address, measurement_profile_id (nullable)
+customers                  (the customer profile — reusable across orders)
+  user_id,
+  display_name, phone,                   -- name + contact (name/email also on users)
+  shipping_addresses(json),              -- one or more saved addresses
+  default_address_id,
+  default_measurement_profile_id (nullable),
+  preferences(json, nullable)            -- style/fit/comms prefs — POST-MVP
+  -- profile stores name, contact, address(es), and links to saved measurements
+  --   so a returning customer doesn't re-enter anything. Preferences are later.
 
 garment_types              (taxonomy; standard now, custom later)
   id, name, base_measurement_schema(json),
@@ -113,9 +120,18 @@ shipping_options           (per tailor: flat-rate options THEY set & quote)
   -- tailor owns & quotes shipping (flat, by item count/type). NOT live carrier
   --   rates. Customer picks one at checkout; the total is frozen onto the order.
 
-measurement_profiles       (belongs to customer, reusable)
+measurement_profiles       (belongs to customer, reusable, lives on the profile)
   id, customer_id, label, garment_type_id, values(json),
-  source(manual|garment|video|ar), source_media_id (nullable)
+  source(manual|garment|video|ar), source_media_id (nullable),
+  last_confirmed_at
+  -- reusable across orders. In the order loop the customer CONFIRMS or ADJUSTS
+  --   this against the tailor's guidance rather than entering from scratch.
+
+order_measurement_reviews  (the tailor's confirm/adjust step per order)
+  id, order_id, proposed_by(tailor), suggested_values(json), note,
+  status(pending|customer_accepted|customer_declined), created_at
+  -- the tailor can review the submitted measurements and propose adjustments;
+  --   the customer accepts/declines before the tailor cuts. See product-plan §5.
 
 orders
   id, customer_id, tailor_id, garment_type_id, status,

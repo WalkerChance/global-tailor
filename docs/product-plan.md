@@ -89,7 +89,8 @@ low-friction alteration jobs.
   2. Selects fabric(s) from that tailor's library (main + lining, etc.).
   3. Selects cut and options (defined by the tailor).
   4. Sees a **live running total** and estimated turnaround.
-  5. Enters/attaches **measurements** (see §5).
+  5. **Confirms or adjusts measurements** — pulled from their saved profile and
+     guided by the tailor's method, not entered from a blank slate (see §5).
   6. **Chooses a shipping option** (flat-rate, tailor-set — see §4.1), which
      adds to the total and sets the delivery estimate.
   7. Places the order → (test order at launch; payment added in a later phase).
@@ -107,6 +108,17 @@ Build the role-aware auth **into the foundation from day one** — it is the
 validated *before* real payments and tax are wired (see roadmap); it must be
 transferable to a scalable platform, not bolted on later. Mechanics in
 architecture §2.1.
+
+### 3.4a Customer profile
+Every customer has a **reusable profile** so nothing is re-entered order to order:
+- **Name & contact** (name, email, phone).
+- **Shipping address(es)** — one or more, with a default.
+- **Saved measurements** — the measurement profile(s) (§5), reused and refined
+  over time rather than re-taken each order.
+- **Preferences** (style/fit/comms) — **post-MVP**; the field exists in the
+  model now, the UI comes later.
+The profile is the customer's home base; the order loop reads from it and writes
+refinements back to it.
 
 ### 3.4 Garment types & customization (staged)
 - **Launch:** three standardized garment types — **suits, shirts, pants** —
@@ -192,22 +204,36 @@ platform data** — his material photos become normalized selection **tiles**
 measurement videos inform the guided wizard. Expect to iterate on *how we
 represent* what he gave us; the inputs themselves are settled.
 
-### 5.2 Phasing
-Phased, because AR is a later luxury, not a v1 requirement. Crucially, launch
-with **standardized measurements** and make the model extensible so tailors can
-add their own asks later — the same extensibility AR plugs into.
+### 5.2 Framing: measurement is a *confirm/adjust*, not blank-slate entry
+The measurement step in the order loop is fundamentally a **confirmation or
+adjustment**, not authoring from nothing:
+- It's seeded by the customer's **saved measurement profile** (§3.4a) — a repeat
+  customer confirms what's already there.
+- It's **guided by the tailor's method** — the tailor defines the standard set
+  and how to take it (informed by our test tailor's videos), so the customer is
+  confirming against a known reference, not guessing.
+- The **tailor can review and propose adjustments** before cutting
+  (`order_measurement_reviews`); the customer accepts or declines. This
+  tailor-in-the-loop confirmation is the single biggest reducer of the "it
+  didn't fit" failure mode, so it's a near-term priority, not a far-future one.
 
-- **Launch — standardized guided entry.** A structured, illustrated measurement
-  wizard with a **standard set of measurements per garment type** (chest, waist,
-  sleeve, inseam, etc.), with photo/video instructions and a "have a friend
-  help / visit any local tailor to measure" prompt. Store as a reusable
-  **measurement profile** on the customer account. Same standard set for every
-  tailor at launch — simpler for customers and comparable across shops.
+### 5.3 Phasing
+Phased, because AR is a later luxury, not a v1 requirement. Launch with
+**standardized measurements** and make the model extensible so tailors can add
+their own asks later — the same extensibility AR plugs into.
+
+- **Launch — standardized guided confirm/adjust.** A structured, illustrated
+  wizard with a **standard set per garment type** (chest, waist, sleeve, inseam,
+  etc.), photo/video instructions, and a "have a friend help / visit any local
+  tailor to measure" prompt. Prefilled from the saved profile; saved back as a
+  reusable **measurement profile**. Same standard set for every tailor at launch
+  — simpler for customers and comparable across shops.
+- **Near-term — tailor confirm/adjust.** Tailor reviews submitted measurements
+  and proposes adjustments before cutting; customer accepts/declines. The
+  worst-failure-mode reducer above.
 - **Later — measurement assist.** Let customers upload a reference (an existing
   well-fitting garment's measurements) — often more reliable than body
   measurements for MTM.
-- **Later — fit confirmation loop.** Tailor reviews submitted measurements and
-  can flag/query before cutting. Reduces the worst failure mode.
 - **Later — tailor-custom measurements.** A tailor can add **their own custom
   measurement asks** (beyond the standard set) that make their output better.
   This uses the same extensible measurement model — build the schema for it now,
