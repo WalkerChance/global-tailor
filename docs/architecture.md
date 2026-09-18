@@ -60,9 +60,13 @@ customers                  (the customer profile — reusable across orders)
   shipping_addresses(json),              -- one or more saved addresses
   default_address_id,
   default_measurement_profile_id (nullable),
+  stripe_customer_id (nullable),         -- for SAVED payment methods (Phase 2+)
   preferences(json, nullable)            -- style/fit/comms prefs — POST-MVP
   -- profile stores name, contact, address(es), and links to saved measurements
   --   so a returning customer doesn't re-enter anything. Preferences are later.
+  -- SAVED CARDS ARE NEVER STORED HERE. We keep only stripe_customer_id; card
+  --   data lives on Stripe. Non-sensitive display (brand/last-4/expiry) can be
+  --   cached read-only from Stripe. See §3.
 
 garment_types              (taxonomy; standard now, custom later)
   id, name, base_measurement_schema(json),
@@ -254,6 +258,15 @@ Recommended shape:
    take-rate vs. tax/processing cost before setting the fee. Architect the
    PaymentIntent so the tax line is already present (US) and extends to
    VAT/IOSS later without reworking the flow.
+
+8. **Saved payment methods (Phase 2+).** Create a **Stripe Customer** per
+   customer (`stripe_customer_id`) and attach cards with a **SetupIntent** so a
+   returning customer checks out in one tap. **We never touch or store raw card
+   data** — it lives on Stripe (PCI scope stays minimal via Stripe Elements /
+   hosted fields); we cache only non-sensitive display (brand, last-4, expiry).
+   At checkout, the PaymentIntent references the saved payment method **on the
+   platform account**, with the staged transfers to the tailor's connected
+   account as above.
 
 **Fees & break-even:** card + Connect + Stripe Tax fees eat into a "small %"
 take rate. The take rate must be set *after* the tax/fee research, not before.

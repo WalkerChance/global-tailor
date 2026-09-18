@@ -117,6 +117,10 @@ Every customer has a **reusable profile** so nothing is re-entered order to orde
   over time rather than re-taken each order.
 - **Preferences** (style/fit/comms) — **post-MVP**; the field exists in the
   model now, the UI comes later.
+- **Saved payment method(s)** — added later, **stored on/via Stripe**, never on
+  our servers. We keep only a Stripe customer reference and non-sensitive
+  metadata (brand, last-4, expiry); Stripe holds the actual card. Arrives with
+  payments (Phase 2+), so a returning customer can check out in one tap.
 The profile is the customer's home base; the order loop reads from it and writes
 refinements back to it.
 

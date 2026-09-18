@@ -60,6 +60,8 @@ Goal: turn the validated loop into a real, money-moving, trust-backed purchase.
 - Tailor **Stripe Connect** onboarding + KYC.
 - Checkout via **Stripe (fee + US sales tax via Stripe Tax) + staged/held
   payout** (partial on acceptance, remainder on delivery/fit-confirm).
+- **Saved payment methods** on the profile — Stripe Customer + SetupIntent;
+  cards stored on Stripe, never on us (one-tap reorder for returning customers).
 - **Tracking-number entry** by the tailor post-ship → drives delivery status and
   final payout release.
 - Basic dispute/refund handling (can be **human-operated** behind the scenes).
