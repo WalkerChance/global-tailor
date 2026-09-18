@@ -119,7 +119,8 @@ measurement_profiles       (belongs to customer, reusable)
 
 orders
   id, customer_id, tailor_id, garment_type_id, status,
-  is_test(bool),                         -- true for the no-payment launch loop
+  is_test(bool),                         -- true = pure UI/flow validation, no
+                                         --   payment and NO tailor engagement
   fabric_selections(json), option_selections(json),
   measurement_snapshot(json),            -- snapshot, not a live reference
   shipping_option_snapshot(json),        -- chosen flat-rate option, frozen

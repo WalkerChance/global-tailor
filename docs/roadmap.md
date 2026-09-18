@@ -41,7 +41,8 @@ Must-haves:
 - **Standardized measurement wizard** per garment type + reusable measurement
   profile (informed by the test tailor's videos).
 - Order object + status flow + customer↔tailor messaging — created as a **test
-  order** (no charge) so the loop is fully exercised.
+  order** to exercise the loop. This is **purely UI/flow validation: no charge
+  and no tailor engagement** (the tailor does not cut cloth or act on it).
 - Admin surface (basic): verify tailors, moderate media/tiles.
 
 Explicitly deferred to later phases: real payments, tax, AR, local finishers,
