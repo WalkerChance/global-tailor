@@ -10,6 +10,7 @@ import {
   addShipment,
 } from "@/app/shop/order-actions";
 import { OrderTimeline } from "@/components/order-timeline";
+import { MessageThread } from "@/components/message-thread";
 
 type Params = { id: string };
 
@@ -34,24 +35,30 @@ export default async function TailorOrderPage({
 
   if (!order || order.tailor_id !== ctx.userId) notFound();
 
-  const [{ data: shipment }, { data: reviews }, { data: events }] = await Promise.all([
-    supabase
-      .from("shipments")
-      .select("carrier, tracking_number, tracking_url, shipped_at, status")
-      .eq("order_id", id)
-      .order("created_at", { ascending: false })
-      .maybeSingle(),
-    supabase
-      .from("order_measurement_reviews")
-      .select("id, suggested_values, note, status, created_at")
-      .eq("order_id", id)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("order_events")
-      .select("type, created_at")
-      .eq("order_id", id)
-      .order("created_at"),
-  ]);
+  const [{ data: shipment }, { data: reviews }, { data: events }, { data: messages }] =
+    await Promise.all([
+      supabase
+        .from("shipments")
+        .select("carrier, tracking_number, tracking_url, shipped_at, status")
+        .eq("order_id", id)
+        .order("created_at", { ascending: false })
+        .maybeSingle(),
+      supabase
+        .from("order_measurement_reviews")
+        .select("id, suggested_values, note, status, created_at")
+        .eq("order_id", id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("order_events")
+        .select("type, created_at")
+        .eq("order_id", id)
+        .order("created_at"),
+      supabase
+        .from("messages")
+        .select("id, from_user, body, created_at")
+        .eq("order_id", id)
+        .order("created_at"),
+    ]);
 
   const gt = order.garment_types as unknown as { name: string } | null;
   const fabric = order.fabric_selections as { name?: string } | null;
@@ -200,6 +207,10 @@ export default async function TailorOrderPage({
           <OrderTimeline events={events} />
         </section>
       )}
+
+      <div className="mt-4">
+        <MessageThread orderId={order.id} meId={ctx.userId} messages={messages ?? []} />
+      </div>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/types/database";
 import { respondMeasurementReview, confirmFit } from "@/app/orders/actions";
 import { OrderTimeline } from "@/components/order-timeline";
+import { MessageThread } from "@/components/message-thread";
 
 type Params = { id: string };
 
@@ -33,7 +34,8 @@ export default async function OrderPage({
 
   const isCustomer = order.customer_id === ctx.userId;
 
-  const [{ data: shipment }, { data: reviews }, { data: events }] = await Promise.all([
+  const [{ data: shipment }, { data: reviews }, { data: events }, { data: messages }] =
+    await Promise.all([
     supabase
       .from("shipments")
       .select("carrier, tracking_number, tracking_url, shipped_at, status")
@@ -48,6 +50,11 @@ export default async function OrderPage({
     supabase
       .from("order_events")
       .select("type, created_at")
+      .eq("order_id", id)
+      .order("created_at"),
+    supabase
+      .from("messages")
+      .select("id, from_user, body, created_at")
       .eq("order_id", id)
       .order("created_at"),
   ]);
@@ -211,6 +218,10 @@ export default async function OrderPage({
           <OrderTimeline events={events} />
         </section>
       )}
+
+      <div className="mt-4">
+        <MessageThread orderId={order.id} meId={ctx.userId} messages={messages ?? []} />
+      </div>
 
       <div className="mt-8 flex gap-4">
         <Link href="/account" className="font-mono text-xs text-brass">
