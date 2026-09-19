@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/types/database";
 import { respondMeasurementReview, confirmFit } from "@/app/orders/actions";
+import { OrderTimeline } from "@/components/order-timeline";
 
 type Params = { id: string };
 
@@ -32,7 +33,7 @@ export default async function OrderPage({
 
   const isCustomer = order.customer_id === ctx.userId;
 
-  const [{ data: shipment }, { data: reviews }] = await Promise.all([
+  const [{ data: shipment }, { data: reviews }, { data: events }] = await Promise.all([
     supabase
       .from("shipments")
       .select("carrier, tracking_number, tracking_url, shipped_at, status")
@@ -44,6 +45,11 @@ export default async function OrderPage({
       .select("id, suggested_values, note, status, created_at")
       .eq("order_id", id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("order_events")
+      .select("type, created_at")
+      .eq("order_id", id)
+      .order("created_at"),
   ]);
 
   const pendingReview = (reviews ?? []).find((r) => r.status === "pending");
@@ -198,6 +204,13 @@ export default async function OrderPage({
           </div>
         </dl>
       </section>
+
+      {events && events.length > 0 && (
+        <section className="card mt-4">
+          <h2 className="mb-3 font-serif text-base font-semibold">Progress</h2>
+          <OrderTimeline events={events} />
+        </section>
+      )}
 
       <div className="mt-8 flex gap-4">
         <Link href="/account" className="font-mono text-xs text-brass">

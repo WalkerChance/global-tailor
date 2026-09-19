@@ -9,6 +9,7 @@ import {
   proposeMeasurementReview,
   addShipment,
 } from "@/app/shop/order-actions";
+import { OrderTimeline } from "@/components/order-timeline";
 
 type Params = { id: string };
 
@@ -33,7 +34,7 @@ export default async function TailorOrderPage({
 
   if (!order || order.tailor_id !== ctx.userId) notFound();
 
-  const [{ data: shipment }, { data: reviews }] = await Promise.all([
+  const [{ data: shipment }, { data: reviews }, { data: events }] = await Promise.all([
     supabase
       .from("shipments")
       .select("carrier, tracking_number, tracking_url, shipped_at, status")
@@ -45,6 +46,11 @@ export default async function TailorOrderPage({
       .select("id, suggested_values, note, status, created_at")
       .eq("order_id", id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("order_events")
+      .select("type, created_at")
+      .eq("order_id", id)
+      .order("created_at"),
   ]);
 
   const gt = order.garment_types as unknown as { name: string } | null;
@@ -187,6 +193,13 @@ export default async function TailorOrderPage({
           </ul>
         )}
       </section>
+
+      {events && events.length > 0 && (
+        <section className="card mt-4">
+          <h2 className="mb-3 font-serif text-base font-semibold">Progress</h2>
+          <OrderTimeline events={events} />
+        </section>
+      )}
     </div>
   );
 }
