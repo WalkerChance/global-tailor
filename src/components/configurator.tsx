@@ -120,12 +120,12 @@ export function Configurator(props: ConfiguratorProps) {
   const missingRequired = groups.filter(
     (g) => g.required && (optionSel[g.id] ?? []).length === 0,
   );
-  const needsAddress = props.signedIn && props.addresses.length > 0;
+  // A delivery address is always required for a signed-in customer to order.
   const canOrder =
     !!fabricId &&
     !!shippingId &&
     missingRequired.length === 0 &&
-    (!needsAddress || !!addressId);
+    (!props.signedIn || !!addressId);
 
   const money = (amount: number) => formatMoney({ amount, currency: props.currency });
 
@@ -364,11 +364,11 @@ export function Configurator(props: ConfiguratorProps) {
                     ? `Choose: ${missingRequired.map((g) => g.name).join(", ")}`
                     : !shippingId
                       ? "Pick shipping"
-                      : needsAddress && !addressId
-                        ? "Choose an address"
-                        : props.addresses.length === 0
+                      : props.signedIn && !addressId
+                        ? props.addresses.length === 0
                           ? "Add an address in your profile"
-                          : ""}
+                          : "Choose an address"
+                        : ""}
               </div>
             )}
           </div>

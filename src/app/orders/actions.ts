@@ -171,17 +171,18 @@ export async function createOrder(
   if (!shipping) return { error: "That shipping option isn't available." };
 
   // Resolve the delivery address from the customer's saved addresses.
+  // An order is unshippable without one, so it is always required.
   const addressId = String(formData.get("shipping_address_id") ?? "");
-  const { data: customer } = await supabase
+  const { data: customer, error: custErr } = await supabase
     .from("customers")
     .select("shipping_addresses")
     .eq("user_id", ctx.userId)
     .maybeSingle();
+  if (custErr) return { error: "Could not load your saved addresses." };
   const savedAddresses = (customer?.shipping_addresses as { id: string }[]) ?? [];
-  let shippingAddress: unknown = null;
-  if (savedAddresses.length > 0) {
-    shippingAddress = savedAddresses.find((a) => a.id === addressId) ?? null;
-    if (!shippingAddress) return { error: "Choose a shipping address." };
+  const shippingAddress = savedAddresses.find((a) => a.id === addressId) ?? null;
+  if (!shippingAddress) {
+    return { error: "Choose a shipping address — add one in your profile first." };
   }
 
   // Measurements from measure_* fields.
