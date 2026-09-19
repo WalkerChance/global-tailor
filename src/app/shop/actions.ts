@@ -169,7 +169,24 @@ export async function deleteFabric(formData: FormData): Promise<void> {
   if (!id) return;
 
   const supabase = await createClient();
+
+  // Look up the linked media so we can clean up Storage (avoid orphans).
+  const { data: fab } = await supabase
+    .from("fabrics")
+    .select("source_media_id, media:source_media_id(storage_path)")
+    .eq("id", id)
+    .eq("tailor_id", auth.userId)
+    .maybeSingle();
+
   await supabase.from("fabrics").delete().eq("id", id);
+
+  if (fab?.source_media_id) {
+    const path = (fab.media as unknown as { storage_path: string | null } | null)
+      ?.storage_path;
+    if (path) await supabase.storage.from("media").remove([path]);
+    await supabase.from("media").delete().eq("id", fab.source_media_id);
+  }
+
   revalidatePath("/shop/fabrics");
 }
 

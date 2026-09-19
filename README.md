@@ -81,11 +81,17 @@ ships direct to the customer as the importer of record. A separate network of
 ## Status
 
 - [x] Plan drafted and refined (round 3)
-- [x] Phase 1 foundation scaffolded: Next.js + Supabase, auth/roles/RLS, data model
-- [x] Tailor shop editor: profile, garment types, fabrics, options, shipping
+- [x] Phase 1 foundation: Next.js + Supabase, auth/roles/RLS, data model
+- [x] Tailor shop editor: profile, garment types, fabrics (+ photo upload), options, shipping
 - [x] Customer configurator → measurements (confirm/adjust) → test order
-- [ ] Photo→tile ingestion; measurement/tailor confirm-adjust review; admin role-granting UI
+- [x] Tailor order management (accept → produce → ship w/ tracking → deliver)
+- [x] Measurement confirm/adjust review (tailor proposes, customer accepts/declines)
+- [x] Admin: grant roles by email + tailor verification (no SQL needed)
+- [x] Order messaging, status timelines, customer profile, home discovery filters
+- [x] Fabric photo upload to Supabase Storage (AI photo→tile normalization: later)
+- [x] Tests (vitest) + CI (typecheck/test/lint/build) + security doc
 - [x] Deployable on Vercel (zero-config) — see docs/deploy.md
+- [ ] Live smoke test against a real Supabase project (use supabase/seed_demo.sql)
 - [ ] US tax + break-even research (separate workstream, feeds Phase 2)
 - [ ] Payments (Stripe Connect) + tax wired (Phase 2)
 - [ ] Key legal decisions resolved (see open questions)
