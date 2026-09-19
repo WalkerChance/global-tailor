@@ -88,8 +88,8 @@ export default async function ShopShippingPage() {
 }
 
 function formatWindow(min: number | null, max: number | null): string {
-  if (min && max) return `${min}–${max} days`;
-  if (max) return `~${max} days`;
-  if (min) return `${min}+ days`;
+  if (min != null && max != null) return `${min}–${max} days`;
+  if (max != null) return `~${max} days`;
+  if (min != null) return `${min}+ days`;
   return "";
 }

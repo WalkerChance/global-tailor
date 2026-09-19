@@ -123,13 +123,22 @@ export function Configurator(props: ConfiguratorProps) {
   const missingMeasures = fields.filter(
     (f) => f.required && !(measures[f.key] ?? "").trim(),
   );
+  // First unmet requirement (also drives the disabled-button tooltip).
+  const blockReason = !fabricId
+    ? "Pick a fabric"
+    : missingRequired.length > 0
+      ? `Choose: ${missingRequired.map((g) => g.name).join(", ")}`
+      : missingMeasures.length > 0
+        ? `Enter: ${missingMeasures.map((f) => f.label).join(", ")}`
+        : !shippingId
+          ? "Pick shipping"
+          : props.signedIn && !addressId
+            ? props.addresses.length === 0
+              ? "Add an address in your profile"
+              : "Choose an address"
+            : "";
   // A delivery address is always required for a signed-in customer to order.
-  const canOrder =
-    !!fabricId &&
-    !!shippingId &&
-    missingRequired.length === 0 &&
-    missingMeasures.length === 0 &&
-    (!props.signedIn || !!addressId);
+  const canOrder = blockReason === "";
 
   const money = (amount: number) => formatMoney({ amount, currency: props.currency });
 
@@ -365,22 +374,8 @@ export function Configurator(props: ConfiguratorProps) {
             <div className="font-serif text-xl font-semibold tabular-nums">
               {money(total)}
             </div>
-            {props.signedIn && !canOrder && (
-              <div className="font-mono text-[11px] text-brass">
-                {!fabricId
-                  ? "Pick a fabric"
-                  : missingRequired.length > 0
-                    ? `Choose: ${missingRequired.map((g) => g.name).join(", ")}`
-                    : missingMeasures.length > 0
-                      ? `Enter: ${missingMeasures.map((f) => f.label).join(", ")}`
-                      : !shippingId
-                        ? "Pick shipping"
-                        : props.signedIn && !addressId
-                          ? props.addresses.length === 0
-                            ? "Add an address in your profile"
-                            : "Choose an address"
-                          : ""}
-              </div>
+            {props.signedIn && blockReason && (
+              <div className="font-mono text-[11px] text-brass">{blockReason}</div>
             )}
           </div>
           {props.signedIn ? (
@@ -388,11 +383,7 @@ export function Configurator(props: ConfiguratorProps) {
               type="submit"
               className="btn-primary"
               disabled={pending || !canOrder}
-              title={
-                missingRequired.length > 0
-                  ? `Choose: ${missingRequired.map((g) => g.name).join(", ")}`
-                  : undefined
-              }
+              title={blockReason || undefined}
             >
               {pending ? "Placing…" : "Place test order"}
             </button>
@@ -413,8 +404,8 @@ export function Configurator(props: ConfiguratorProps) {
 function shipWindow(s: ConfigShip): string {
   const parts: string[] = [];
   if (s.carrier) parts.push(s.carrier);
-  if (s.min_days && s.max_days) parts.push(`${s.min_days}–${s.max_days} days`);
-  else if (s.max_days) parts.push(`~${s.max_days} days`);
+  if (s.min_days != null && s.max_days != null) parts.push(`${s.min_days}–${s.max_days} days`);
+  else if (s.max_days != null) parts.push(`~${s.max_days} days`);
   return parts.join(" · ") || "—";
 }
 

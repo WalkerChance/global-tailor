@@ -90,10 +90,12 @@ export async function addShipment(formData: FormData): Promise<void> {
 
   const loaded = await loadTailorOrder(orderId);
   if (!loaded) return;
-  // Only ship from a pre-ship state (prevents duplicate shipments / regressions).
+  // Only ship from a pre-ship state (prevents regressions).
   if (!["placed", "accepted", "in_production"].includes(loaded.order.status)) return;
 
-  await loaded.supabase.from("shipments").insert({
+  // Insert first: a unique index on shipments(order_id) makes concurrent/repeat
+  // submits fail here, so we only flip status when this insert actually won.
+  const { error: insErr } = await loaded.supabase.from("shipments").insert({
     order_id: orderId,
     carrier: String(formData.get("carrier") ?? "").trim() || null,
     tracking_number: trackingNumber,
@@ -101,6 +103,8 @@ export async function addShipment(formData: FormData): Promise<void> {
     shipped_at: new Date().toISOString(),
     status: "shipped",
   });
+  if (insErr) return; // duplicate shipment or write failure — do not regress state
+
   await loaded.supabase.from("orders").update({ status: "shipped" }).eq("id", orderId);
   await loaded.supabase
     .from("order_events")
