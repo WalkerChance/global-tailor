@@ -27,23 +27,36 @@ export default async function ShopConsolePage() {
   }
 
   const supabase = await createClient();
-  const [{ data: profile }, { count: enabledTypes }, { count: fabricCount }] =
-    await Promise.all([
-      supabase
-        .from("tailor_profiles")
-        .select("shop_name, slug, verification_status")
-        .eq("user_id", ctx.userId)
-        .maybeSingle(),
-      supabase
-        .from("shop_garment_types")
-        .select("*", { count: "exact", head: true })
-        .eq("tailor_id", ctx.userId)
-        .eq("active", true),
-      supabase
-        .from("fabrics")
-        .select("*", { count: "exact", head: true })
-        .eq("tailor_id", ctx.userId),
-    ]);
+  const [
+    { data: profile },
+    { count: enabledTypes },
+    { count: fabricCount },
+    { count: optionCount },
+    { count: shippingCount },
+  ] = await Promise.all([
+    supabase
+      .from("tailor_profiles")
+      .select("shop_name, slug, verification_status")
+      .eq("user_id", ctx.userId)
+      .maybeSingle(),
+    supabase
+      .from("shop_garment_types")
+      .select("*", { count: "exact", head: true })
+      .eq("tailor_id", ctx.userId)
+      .eq("active", true),
+    supabase
+      .from("fabrics")
+      .select("*", { count: "exact", head: true })
+      .eq("tailor_id", ctx.userId),
+    supabase
+      .from("option_groups")
+      .select("*", { count: "exact", head: true })
+      .eq("tailor_id", ctx.userId),
+    supabase
+      .from("shipping_options")
+      .select("*", { count: "exact", head: true })
+      .eq("tailor_id", ctx.userId),
+  ]);
 
   const hasProfile = !!profile;
 
@@ -89,8 +102,20 @@ export default async function ShopConsolePage() {
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <SoonCard title="Options & pricing" note="Cuts, options, type→material tie-through." />
-        <SoonCard title="Shipping" note="Flat-rate options you set & quote." />
+        <StepCard
+          href="/shop/options"
+          title="Options & cuts"
+          done={(optionCount ?? 0) > 0}
+          status={`${optionCount ?? 0} groups`}
+          note="Choices customers make, with price add-ons."
+        />
+        <StepCard
+          href="/shop/shipping"
+          title="Shipping"
+          done={(shippingCount ?? 0) > 0}
+          status={`${shippingCount ?? 0} options`}
+          note="Flat-rate options you set & quote."
+        />
       </div>
     </div>
   );
@@ -130,16 +155,3 @@ function StepCard({
   );
 }
 
-function SoonCard({ title, note }: { title: string; note: string }) {
-  return (
-    <div className="card opacity-70">
-      <div className="flex items-center justify-between">
-        <h2 className="font-serif text-base font-semibold">{title}</h2>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">
-          To build
-        </span>
-      </div>
-      <p className="mt-1 text-sm text-ink-soft">{note}</p>
-    </div>
-  );
-}

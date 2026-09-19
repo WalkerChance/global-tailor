@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getSessionContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { formatMoney } from "@/lib/types/database";
 
 export const metadata: Metadata = { title: "Account" };
 
@@ -24,6 +26,13 @@ export default async function AccountPage() {
   const addresses = Array.isArray(customer?.shipping_addresses)
     ? customer!.shipping_addresses.length
     : 0;
+
+  const { data: orders } = await supabase
+    .from("orders")
+    .select("id, status, is_test, total, currency, created_at, garment_types(name), tailor_profiles(shop_name)")
+    .eq("customer_id", ctx.userId)
+    .order("created_at", { ascending: false })
+    .limit(10);
 
   return (
     <div className="py-10">
@@ -59,6 +68,51 @@ export default async function AccountPage() {
           <Row label="Saved cards" value="Added in Phase 2 (via Stripe)" />
         </Card>
       </div>
+
+      <section className="mt-10">
+        <h2 className="font-serif text-2xl font-medium">Orders</h2>
+        {!orders || orders.length === 0 ? (
+          <p className="mt-3 text-sm text-ink-soft">
+            No orders yet. Browse tailors from the{" "}
+            <Link href="/" className="text-brass">
+              home page
+            </Link>{" "}
+            to build a garment.
+          </p>
+        ) : (
+          <ul className="mt-4 flex flex-col gap-3">
+            {orders.map((o) => {
+              const gt = o.garment_types as unknown as { name: string } | null;
+              const shop = o.tailor_profiles as unknown as {
+                shop_name: string;
+              } | null;
+              return (
+                <li key={o.id}>
+                  <Link
+                    href={`/orders/${o.id}`}
+                    className="flex items-center justify-between gap-4 rounded-xl border border-line bg-surface p-4 transition hover:border-brass"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">
+                        {gt?.name ?? "Garment"}
+                        {shop ? ` · ${shop.shop_name}` : ""}
+                      </span>
+                      <span className="block font-mono text-xs text-ink-soft">
+                        {o.status}
+                        {o.is_test ? " · test" : ""} ·{" "}
+                        {new Date(o.created_at).toLocaleDateString()}
+                      </span>
+                    </span>
+                    <span className="font-mono text-sm tabular-nums">
+                      {formatMoney({ amount: o.total, currency: o.currency })}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       <p className="mt-8 font-mono text-xs text-ink-soft">
         Profile editing UI is a Phase 1 build item. Preferences and saved cards

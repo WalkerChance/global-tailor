@@ -24,6 +24,16 @@ npm run dev                     # http://localhost:3000
 Apply the database schema first — see [`supabase/README.md`](supabase/README.md).
 Agent/contributor conventions live in [`CLAUDE.md`](CLAUDE.md).
 
+### Deploy to Vercel
+This is a standard Next.js App Router app — Vercel builds it zero-config.
+1. Import the GitHub repo in Vercel (Framework preset auto-detects **Next.js**).
+2. Set project **Environment Variables** (Production + Preview):
+   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and
+   (server-only) `SUPABASE_SERVICE_ROLE_KEY` if used.
+3. In Supabase → **Authentication → URL configuration**, add your Vercel domain
+   (and `https://<domain>/auth/callback`) as Site URL / redirect URLs.
+No `vercel.json` is required. See [`docs/deploy.md`](docs/deploy.md) for detail.
+
 ### The plan
 Start here:
 
@@ -72,7 +82,10 @@ ships direct to the customer as the importer of record. A separate network of
 
 - [x] Plan drafted and refined (round 3)
 - [x] Phase 1 foundation scaffolded: Next.js + Supabase, auth/roles/RLS, data model
-- [ ] Phase 1 features: shop editor, configurator, measurement wizard, test order
+- [x] Tailor shop editor: profile, garment types, fabrics, options, shipping
+- [x] Customer configurator → measurements (confirm/adjust) → test order
+- [ ] Photo→tile ingestion; measurement/tailor confirm-adjust review; admin role-granting UI
+- [x] Deployable on Vercel (zero-config) — see docs/deploy.md
 - [ ] US tax + break-even research (separate workstream, feeds Phase 2)
 - [ ] Payments (Stripe Connect) + tax wired (Phase 2)
 - [ ] Key legal decisions resolved (see open questions)

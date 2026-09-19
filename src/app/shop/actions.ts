@@ -139,3 +139,110 @@ export async function deleteFabric(formData: FormData): Promise<void> {
   await supabase.from("fabrics").delete().eq("id", id);
   revalidatePath("/shop/fabrics");
 }
+
+// --- Options (cuts) -------------------------------------------------------
+
+export async function addOptionGroup(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const auth = await requireTailorId();
+  if ("error" in auth) return auth;
+
+  const garmentTypeId = String(formData.get("garment_type_id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!garmentTypeId) return { error: "Choose a garment type." };
+  if (!name) return { error: "Option name is required." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("option_groups").insert({
+    tailor_id: auth.userId,
+    garment_type_id: garmentTypeId,
+    name,
+    required: formData.get("required") === "on",
+    multi_select: formData.get("multi_select") === "on",
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/shop/options");
+  return { ok: true };
+}
+
+export async function deleteOptionGroup(formData: FormData): Promise<void> {
+  const auth = await requireTailorId();
+  if ("error" in auth) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("option_groups").delete().eq("id", id);
+  revalidatePath("/shop/options");
+}
+
+export async function addOptionValue(formData: FormData): Promise<void> {
+  const auth = await requireTailorId();
+  if ("error" in auth) return;
+  const groupId = String(formData.get("option_group_id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!groupId || !name) return;
+  const supabase = await createClient();
+  await supabase.from("option_values").insert({
+    option_group_id: groupId,
+    name,
+    price_modifier: parseDollarsToCents(formData.get("price_modifier")) ?? 0,
+  });
+  revalidatePath("/shop/options");
+}
+
+export async function deleteOptionValue(formData: FormData): Promise<void> {
+  const auth = await requireTailorId();
+  if ("error" in auth) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("option_values").delete().eq("id", id);
+  revalidatePath("/shop/options");
+}
+
+// --- Shipping (flat-rate) -------------------------------------------------
+
+export async function addShippingOption(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const auth = await requireTailorId();
+  if ("error" in auth) return auth;
+
+  const label = String(formData.get("label") ?? "").trim();
+  if (!label) return { error: "A label is required (e.g. “DHL Express”)." };
+
+  const minRaw = String(formData.get("min_days") ?? "").trim();
+  const maxRaw = String(formData.get("max_days") ?? "").trim();
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("shipping_options").insert({
+    tailor_id: auth.userId,
+    label,
+    carrier: String(formData.get("carrier") ?? "").trim() || null,
+    base_price: parseDollarsToCents(formData.get("base_price")) ?? 0,
+    additional_item_price: parseDollarsToCents(formData.get("additional_item_price")),
+    min_days: minRaw === "" ? null : Number(minRaw),
+    max_days: maxRaw === "" ? null : Number(maxRaw),
+    currency: "USD",
+    destination_countries: ["US"],
+    active: true,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/shop/shipping");
+  return { ok: true };
+}
+
+export async function deleteShippingOption(formData: FormData): Promise<void> {
+  const auth = await requireTailorId();
+  if ("error" in auth) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const supabase = await createClient();
+  await supabase.from("shipping_options").delete().eq("id", id);
+  revalidatePath("/shop/shipping");
+}

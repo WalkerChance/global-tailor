@@ -126,13 +126,17 @@ export default async function TailorPage({
         )}
       </section>
 
-      <div className="mt-12 rounded-xl border border-dashed border-line bg-surface p-6 text-center">
-        <p className="text-sm text-ink-soft">
-          The <b>build-your-garment</b> configurator lands here next — pick a
-          garment, choose fabric and options, confirm measurements, and place a
-          test order.
-        </p>
-      </div>
+      {offered && offered.length > 0 && (
+        <div className="mt-12 flex flex-col items-center gap-3 rounded-xl border border-line bg-surface p-8 text-center">
+          <p className="max-w-prose text-sm text-ink-soft">
+            Pick a garment, choose fabric and options, confirm your measurements,
+            and place an order.
+          </p>
+          <Link href={`/tailors/${slug}/build`} className="btn-primary">
+            Build your garment
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
