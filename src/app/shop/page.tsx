@@ -10,7 +10,6 @@ export default async function ShopConsolePage() {
   const ctx = await getSessionContext();
   if (!ctx) redirect("/login?next=/shop");
 
-  // Role gate: tailor console requires the tailor role.
   if (!hasRole(ctx, "tailor")) {
     return (
       <div className="py-16">
@@ -28,11 +27,25 @@ export default async function ShopConsolePage() {
   }
 
   const supabase = await createClient();
-  const { data: profile } = await supabase
-    .from("tailor_profiles")
-    .select("shop_name, slug, verification_status")
-    .eq("user_id", ctx.userId)
-    .maybeSingle();
+  const [{ data: profile }, { count: enabledTypes }, { count: fabricCount }] =
+    await Promise.all([
+      supabase
+        .from("tailor_profiles")
+        .select("shop_name, slug, verification_status")
+        .eq("user_id", ctx.userId)
+        .maybeSingle(),
+      supabase
+        .from("shop_garment_types")
+        .select("*", { count: "exact", head: true })
+        .eq("tailor_id", ctx.userId)
+        .eq("active", true),
+      supabase
+        .from("fabrics")
+        .select("*", { count: "exact", head: true })
+        .eq("tailor_id", ctx.userId),
+    ]);
+
+  const hasProfile = !!profile;
 
   return (
     <div className="py-10">
@@ -44,35 +57,89 @@ export default async function ShopConsolePage() {
       </h1>
       {profile && (
         <p className="mt-1 font-mono text-xs text-ink-soft">
-          /{profile.slug} · {profile.verification_status}
+          <Link href={`/tailors/${profile.slug}`} className="hover:text-brass">
+            /tailors/{profile.slug}
+          </Link>{" "}
+          · {profile.verification_status}
         </p>
       )}
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <Task title="Shop profile" note="Name, story, location, turnaround." />
-        <Task title="Garment types" note="Enable suits / shirts / pants." />
-        <Task title="Fabrics & tiles" note="Upload materials → AI tile → confirm." />
-        <Task title="Options & pricing" note="Cuts, options, type→material pricing." />
-        <Task title="Shipping" note="Flat-rate options you set & quote." />
-        <Task title="Orders" note="Incoming test orders (Phase 1)." />
+      <div className="mt-8 grid gap-4 sm:grid-cols-3">
+        <StepCard
+          href="/shop/profile"
+          title="Shop profile"
+          done={hasProfile}
+          status={hasProfile ? "Set up" : "Start here"}
+          note="Name, story, location, turnaround."
+        />
+        <StepCard
+          href="/shop/garments"
+          title="Garment types"
+          done={(enabledTypes ?? 0) > 0}
+          status={`${enabledTypes ?? 0} offered`}
+          note="Enable suits / shirts / pants + base price."
+        />
+        <StepCard
+          href="/shop/fabrics"
+          title="Fabrics"
+          done={(fabricCount ?? 0) > 0}
+          status={`${fabricCount ?? 0} in library`}
+          note="Your material library."
+        />
       </div>
 
-      <p className="mt-8 font-mono text-xs text-ink-soft">
-        These editors are the Phase 1 build. This page confirms the tailor role
-        gate and RLS scoping work.
-      </p>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <SoonCard title="Options & pricing" note="Cuts, options, type→material tie-through." />
+        <SoonCard title="Shipping" note="Flat-rate options you set & quote." />
+      </div>
     </div>
   );
 }
 
-function Task({ title, note }: { title: string; note: string }) {
+function StepCard({
+  href,
+  title,
+  note,
+  done,
+  status,
+}: {
+  href: string;
+  title: string;
+  note: string;
+  done: boolean;
+  status: string;
+}) {
   return (
-    <section className="rounded-xl border border-line bg-surface p-5">
-      <h2 className="font-serif text-base font-semibold">{title}</h2>
+    <Link
+      href={href}
+      className="card block transition hover:border-brass"
+    >
+      <div className="flex items-center justify-between">
+        <h2 className="font-serif text-base font-semibold">{title}</h2>
+        <span
+          className={`font-mono text-[10px] uppercase tracking-wider ${
+            done ? "text-[var(--brass)]" : "text-ink-soft"
+          }`}
+        >
+          {done ? "✓ " : ""}
+          {status}
+        </span>
+      </div>
       <p className="mt-1 text-sm text-ink-soft">{note}</p>
-      <span className="mt-3 inline-block font-mono text-[10px] uppercase tracking-wider text-brass">
-        To build
-      </span>
-    </section>
+    </Link>
+  );
+}
+
+function SoonCard({ title, note }: { title: string; note: string }) {
+  return (
+    <div className="card opacity-70">
+      <div className="flex items-center justify-between">
+        <h2 className="font-serif text-base font-semibold">{title}</h2>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+          To build
+        </span>
+      </div>
+      <p className="mt-1 text-sm text-ink-soft">{note}</p>
+    </div>
   );
 }

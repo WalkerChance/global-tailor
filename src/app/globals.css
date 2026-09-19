@@ -44,6 +44,56 @@
   color-scheme: dark;
 }
 
+@layer components {
+  .input,
+  .textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 15px;
+  }
+  .textarea {
+    min-height: 5rem;
+    resize: vertical;
+  }
+  .input:focus,
+  .textarea:focus {
+    outline: 2px solid var(--brass);
+    outline-offset: 1px;
+  }
+  .label {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: var(--brass);
+    color: var(--navy);
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.6rem 1.1rem;
+  }
+  .btn-primary:disabled {
+    opacity: 0.6;
+  }
+  .card {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+}
+
 @layer base {
   html,
   body {

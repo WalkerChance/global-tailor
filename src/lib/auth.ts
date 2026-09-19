@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { UserRole } from "@/lib/types/database";
 
@@ -32,4 +33,21 @@ export async function getSessionContext(): Promise<SessionContext | null> {
 
 export function hasRole(ctx: SessionContext | null, role: UserRole): boolean {
   return !!ctx && ctx.roles.includes(role);
+}
+
+/** Require a signed-in user, redirecting to login (preserving `next`) if not. */
+export async function requireUser(next: string): Promise<SessionContext> {
+  const ctx = await getSessionContext();
+  if (!ctx) redirect(`/login?next=${encodeURIComponent(next)}`);
+  return ctx;
+}
+
+/**
+ * Require the tailor role. Redirects to login if signed out, or to /shop
+ * (which shows the "become a tailor" state) if signed in without the role.
+ */
+export async function requireTailor(next: string): Promise<SessionContext> {
+  const ctx = await requireUser(next);
+  if (!hasRole(ctx, "tailor")) redirect("/shop");
+  return ctx;
 }
