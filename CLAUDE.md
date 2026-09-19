@@ -45,7 +45,8 @@ npm install
 cp .env.example .env.local   # fill Supabase URL + anon key
 npm run dev
 ```
-`npm run typecheck` and `npm run build` should pass before committing.
+`npm run typecheck`, `npm test`, and `npm run build` should pass before committing.
+Pure logic (pricing, utils) has vitest coverage in `src/lib/*.test.ts`.
 
 ## Not in Phase 1
 Payments/tax (Stripe), AR, local finishers, custom garments/measurements,

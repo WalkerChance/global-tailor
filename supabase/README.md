@@ -46,6 +46,13 @@ as a JWT claim (to avoid a lookup in app code), add a
 
 ## Storage
 
-Fabric/garment media is referenced by URL in the `media` table. Create a public
-Storage bucket (e.g. `media`) when wiring uploads; keep originals there and store
-the returned URL — never blobs in Postgres.
+`0003_storage.sql` creates a public `media` bucket with owner-scoped write
+policies (objects are namespaced by uploader uid). Fabric photos upload here and
+their public URL is stored in the `media` table — never blobs in Postgres.
+
+## Demo data (optional)
+
+To try the full build-and-order loop quickly, run
+[`seed_demo.sql`](seed_demo.sql): sign up a user, put their `auth.users.id` into
+the script, and run it. It grants the tailor role and creates a fully-configured
+"Demo Tailors" shop (garment types, fabrics, a Lapel option group, shipping).
