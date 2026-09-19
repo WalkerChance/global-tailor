@@ -48,6 +48,16 @@ export function AddFabricForm() {
         </Field>
       </div>
 
+      <Field label="Photo" htmlFor="photo" hint="Becomes the material tile. JPG/PNG, up to 8MB.">
+        <input
+          id="photo"
+          name="photo"
+          type="file"
+          accept="image/*"
+          className="input"
+        />
+      </Field>
+
       {state.error && <p className="text-sm text-brass">{state.error}</p>}
 
       <button type="submit" className="btn-primary self-start" disabled={pending}>
@@ -55,8 +65,8 @@ export function AddFabricForm() {
       </button>
 
       <p className="text-xs text-ink-soft">
-        Photo upload and AI tile normalization come next — for now, fabrics are
-        added by hand.
+        The photo is used as the material tile now; AI normalization (clean
+        swatch + extracted attributes) is a later step.
       </p>
     </form>
   );

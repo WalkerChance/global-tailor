@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext, hasRole } from "@/lib/auth";
 import { slugify, parseDollarsToCents } from "@/lib/utils";
@@ -109,8 +110,38 @@ export async function addFabric(
   if (!name) return { error: "Fabric name is required." };
 
   const priceAmount = parseDollarsToCents(formData.get("price_amount"));
-
   const supabase = await createClient();
+
+  // Optional photo → Storage → media row. The uploaded image is the tile for
+  // now; the AI normalization step (ai_status pending→done) comes later.
+  let mediaId: string | null = null;
+  const photo = formData.get("photo");
+  if (photo instanceof File && photo.size > 0) {
+    if (photo.size > 8 * 1024 * 1024) {
+      return { error: "Image is too large (max 8MB)." };
+    }
+    const path = `${auth.userId}/fabrics/${randomUUID()}`;
+    const { error: upErr } = await supabase.storage
+      .from("media")
+      .upload(path, photo, { contentType: photo.type || "image/jpeg", upsert: false });
+    if (upErr) return { error: `Image upload failed: ${upErr.message}` };
+
+    const { data: pub } = supabase.storage.from("media").getPublicUrl(path);
+    const { data: media } = await supabase
+      .from("media")
+      .insert({
+        owner_user_id: auth.userId,
+        kind: "fabric",
+        storage_path: path,
+        public_url: pub.publicUrl,
+        mime_type: photo.type || null,
+        ai_status: "none",
+      })
+      .select("id")
+      .single();
+    mediaId = media?.id ?? null;
+  }
+
   const { error } = await supabase.from("fabrics").insert({
     tailor_id: auth.userId,
     name,
@@ -120,6 +151,8 @@ export async function addFabric(
     price_amount: priceAmount ?? 0,
     currency: "USD",
     availability: "in_stock",
+    source_media_id: mediaId,
+    tile_media_id: mediaId,
   });
 
   if (error) return { error: error.message };

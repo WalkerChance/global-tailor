@@ -4,9 +4,17 @@ import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { createOrder, type OrderState } from "@/app/orders/actions";
 import { formatMoney } from "@/lib/types/database";
+import { FabricSwatch } from "@/components/fabric-swatch";
 
 export type ConfigType = { id: string; key: string; name: string; basePrice: number };
-export type ConfigFabric = { id: string; name: string; price: number; meta: string };
+export type ConfigFabric = {
+  id: string;
+  name: string;
+  price: number;
+  meta: string;
+  image?: string | null;
+  color?: string | null;
+};
 export type ConfigValue = { id: string; name: string; price_modifier: number };
 export type ConfigGroup = {
   id: string;
@@ -148,7 +156,7 @@ export function Configurator(props: ConfiguratorProps) {
                   fabricId === f.id ? "border-brass" : "border-line"
                 } cursor-pointer`}
               >
-                <span className="min-w-0">
+                <span className="flex min-w-0 items-center gap-3">
                   <input
                     type="radio"
                     name="fabric_id"
@@ -157,9 +165,12 @@ export function Configurator(props: ConfiguratorProps) {
                     onChange={() => setFabricId(f.id)}
                     className="sr-only"
                   />
-                  <span className="block truncate font-medium">{f.name}</span>
-                  <span className="block truncate font-mono text-xs text-ink-soft">
-                    {f.meta || "—"}
+                  <FabricSwatch url={f.image} color={f.color} />
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{f.name}</span>
+                    <span className="block truncate font-mono text-xs text-ink-soft">
+                      {f.meta || "—"}
+                    </span>
                   </span>
                 </span>
                 <span className="font-mono text-sm tabular-nums">{money(f.price)}</span>

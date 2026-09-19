@@ -4,6 +4,7 @@ import { requireTailor } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/types/database";
 import { AddFabricForm } from "@/components/shop/add-fabric-form";
+import { FabricSwatch } from "@/components/fabric-swatch";
 import { deleteFabric } from "@/app/shop/actions";
 
 export const metadata: Metadata = { title: "Fabrics" };
@@ -14,7 +15,9 @@ export default async function ShopFabricsPage() {
 
   const { data: fabrics } = await supabase
     .from("fabrics")
-    .select("id, name, composition, color, pattern, price_amount, currency")
+    .select(
+      "id, name, composition, color, pattern, price_amount, currency, tile:tile_media_id(public_url)",
+    )
     .eq("tailor_id", ctx.userId)
     .order("created_at", { ascending: false });
 
@@ -51,12 +54,18 @@ export default async function ShopFabricsPage() {
                   key={f.id}
                   className="flex items-center justify-between gap-4 rounded-xl border border-line bg-surface p-4"
                 >
-                  <div className="min-w-0">
-                    <div className="truncate font-medium">{f.name}</div>
-                    <div className="truncate font-mono text-xs text-ink-soft">
-                      {[f.composition, f.color, f.pattern]
-                        .filter(Boolean)
-                        .join(" · ") || "—"}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <FabricSwatch
+                      url={(f.tile as unknown as { public_url: string } | null)?.public_url}
+                      color={f.color}
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{f.name}</div>
+                      <div className="truncate font-mono text-xs text-ink-soft">
+                        {[f.composition, f.color, f.pattern]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">

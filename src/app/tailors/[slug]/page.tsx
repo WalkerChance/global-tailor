@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/types/database";
+import { FabricSwatch } from "@/components/fabric-swatch";
 
 type Params = { slug: string };
 
@@ -47,7 +48,9 @@ export default async function TailorPage({
       .eq("active", true),
     supabase
       .from("fabrics")
-      .select("id, name, composition, color, pattern, price_amount, currency")
+      .select(
+        "id, name, composition, color, pattern, price_amount, currency, tile:tile_media_id(public_url)",
+      )
       .eq("tailor_id", shop.user_id)
       .order("name"),
   ]);
@@ -110,11 +113,17 @@ export default async function TailorPage({
                 key={f.id}
                 className="flex items-center justify-between gap-4 rounded-xl border border-line bg-surface p-4"
               >
-                <div className="min-w-0">
-                  <div className="truncate font-medium">{f.name}</div>
-                  <div className="truncate font-mono text-xs text-ink-soft">
-                    {[f.composition, f.color, f.pattern].filter(Boolean).join(" · ") ||
-                      "—"}
+                <div className="flex min-w-0 items-center gap-3">
+                  <FabricSwatch
+                    url={(f.tile as unknown as { public_url: string } | null)?.public_url}
+                    color={f.color}
+                  />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{f.name}</div>
+                    <div className="truncate font-mono text-xs text-ink-soft">
+                      {[f.composition, f.color, f.pattern].filter(Boolean).join(" · ") ||
+                        "—"}
+                    </div>
                   </div>
                 </div>
                 <span className="font-mono text-sm tabular-nums">

@@ -43,7 +43,10 @@ export default async function AccountPage() {
         {customer?.display_name || ctx.email}
       </h1>
       <p className="mt-1 font-mono text-xs text-ink-soft">
-        Roles: {ctx.roles.join(", ")}
+        Roles: {ctx.roles.join(", ")} ·{" "}
+        <Link href="/account/profile" className="text-brass">
+          Edit profile →
+        </Link>
       </p>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">

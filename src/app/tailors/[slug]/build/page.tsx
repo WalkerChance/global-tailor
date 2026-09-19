@@ -40,7 +40,9 @@ export default async function BuildPage({
         .eq("active", true),
       supabase
         .from("fabrics")
-        .select("id, name, composition, color, pattern, price_amount")
+        .select(
+          "id, name, composition, color, pattern, price_amount, tile:tile_media_id(public_url)",
+        )
         .eq("tailor_id", shop.user_id)
         .order("name"),
       supabase
@@ -95,6 +97,8 @@ export default async function BuildPage({
     name: f.name,
     price: f.price_amount,
     meta: [f.composition, f.color, f.pattern].filter(Boolean).join(" · "),
+    image: (f.tile as unknown as { public_url: string } | null)?.public_url ?? null,
+    color: f.color ?? null,
   }));
 
   const groups: ConfigGroup[] = (groupRows ?? []).map((g) => ({
