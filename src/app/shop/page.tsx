@@ -58,6 +58,11 @@ export default async function ShopConsolePage() {
       .eq("tailor_id", ctx.userId),
   ]);
 
+  const { count: sampleCount } = await supabase
+    .from("samples")
+    .select("*", { count: "exact", head: true })
+    .eq("tailor_id", ctx.userId);
+
   const hasProfile = !!profile;
 
   return (
@@ -118,6 +123,13 @@ export default async function ShopConsolePage() {
           done={(shippingCount ?? 0) > 0}
           status={`${shippingCount ?? 0} options`}
           note="Flat-rate options you set & quote."
+        />
+        <StepCard
+          href="/shop/samples"
+          title="Samples"
+          done={(sampleCount ?? 0) > 0}
+          status={`${sampleCount ?? 0} in portfolio`}
+          note="Photos of finished work for your shop page."
         />
       </div>
     </div>

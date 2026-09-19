@@ -190,6 +190,90 @@ export async function deleteFabric(formData: FormData): Promise<void> {
   revalidatePath("/shop/fabrics");
 }
 
+// --- Samples (portfolio) --------------------------------------------------
+
+export async function addSample(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const auth = await requireTailorId();
+  if ("error" in auth) return auth;
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { error: "A title is required." };
+
+  const garmentTypeId = String(formData.get("garment_type_id") ?? "") || null;
+  const supabase = await createClient();
+
+  const mediaIds: string[] = [];
+  const photo = formData.get("photo");
+  if (photo instanceof File && photo.size > 0) {
+    if (photo.size > 8 * 1024 * 1024) return { error: "Image is too large (max 8MB)." };
+    const path = `${auth.userId}/samples/${randomUUID()}`;
+    const { error: upErr } = await supabase.storage
+      .from("media")
+      .upload(path, photo, { contentType: photo.type || "image/jpeg", upsert: false });
+    if (upErr) return { error: `Image upload failed: ${upErr.message}` };
+    const { data: pub } = supabase.storage.from("media").getPublicUrl(path);
+    const { data: media } = await supabase
+      .from("media")
+      .insert({
+        owner_user_id: auth.userId,
+        kind: "sample",
+        storage_path: path,
+        public_url: pub.publicUrl,
+        mime_type: photo.type || null,
+        ai_status: "none",
+      })
+      .select("id")
+      .single();
+    if (media?.id) mediaIds.push(media.id);
+  }
+
+  const { error } = await supabase.from("samples").insert({
+    tailor_id: auth.userId,
+    garment_type_id: garmentTypeId,
+    title,
+    description: String(formData.get("description") ?? "").trim() || null,
+    media_ids: mediaIds,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/shop/samples");
+  return { ok: true };
+}
+
+export async function deleteSample(formData: FormData): Promise<void> {
+  const auth = await requireTailorId();
+  if ("error" in auth) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const supabase = await createClient();
+  const { data: sample } = await supabase
+    .from("samples")
+    .select("media_ids")
+    .eq("id", id)
+    .eq("tailor_id", auth.userId)
+    .maybeSingle();
+
+  await supabase.from("samples").delete().eq("id", id);
+
+  const ids = (sample?.media_ids as string[]) ?? [];
+  if (ids.length > 0) {
+    const { data: media } = await supabase
+      .from("media")
+      .select("id, storage_path")
+      .in("id", ids);
+    const paths = (media ?? [])
+      .map((m) => m.storage_path)
+      .filter((p): p is string => !!p);
+    if (paths.length > 0) await supabase.storage.from("media").remove(paths);
+    await supabase.from("media").delete().in("id", ids);
+  }
+  revalidatePath("/shop/samples");
+}
+
 // --- Options (cuts) -------------------------------------------------------
 
 export async function addOptionGroup(

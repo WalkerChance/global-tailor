@@ -40,7 +40,7 @@ export default async function TailorPage({
 
   if (!shop) notFound();
 
-  const [{ data: offered }, { data: fabrics }] = await Promise.all([
+  const [{ data: offered }, { data: fabrics }, { data: samples }] = await Promise.all([
     supabase
       .from("shop_garment_types")
       .select("base_price, currency, garment_types(key, name)")
@@ -53,7 +53,25 @@ export default async function TailorPage({
       )
       .eq("tailor_id", shop.user_id)
       .order("name"),
+    supabase
+      .from("samples")
+      .select("id, title, media_ids")
+      .eq("tailor_id", shop.user_id)
+      .order("created_at", { ascending: false }),
   ]);
+
+  // Resolve sample cover images.
+  const sampleIds = [
+    ...new Set((samples ?? []).flatMap((s) => (s.media_ids as string[]) ?? [])),
+  ];
+  const sampleUrl = new Map<string, string>();
+  if (sampleIds.length > 0) {
+    const { data: media } = await supabase
+      .from("media")
+      .select("id, public_url")
+      .in("id", sampleIds);
+    for (const m of media ?? []) if (m.public_url) sampleUrl.set(m.id, m.public_url);
+  }
 
   return (
     <div className="py-10">
@@ -71,6 +89,26 @@ export default async function TailorPage({
         </p>
         {shop.bio && <p className="mt-4 max-w-prose text-ink-soft">{shop.bio}</p>}
       </header>
+
+      {samples && samples.length > 0 && (
+        <section className="mt-10">
+          <h2 className="font-serif text-2xl font-medium">Portfolio</h2>
+          <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {samples.map((s) => {
+              const first = ((s.media_ids as string[]) ?? [])[0];
+              const url = first ? sampleUrl.get(first) : undefined;
+              if (!url) return null;
+              return (
+                <li key={s.id} className="overflow-hidden rounded-xl border border-line bg-surface">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={s.title} loading="lazy" className="aspect-square w-full object-cover" />
+                  <div className="truncate p-2 text-xs">{s.title}</div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <section className="mt-10">
         <h2 className="font-serif text-2xl font-medium">What they make</h2>
