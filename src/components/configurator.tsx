@@ -113,6 +113,12 @@ export function Configurator(props: ConfiguratorProps) {
     (type?.basePrice ?? 0) + (fabric?.price ?? 0) + optionsTotal;
   const total = subtotal + (ship?.base_price ?? 0);
 
+  const missingRequired = groups.filter(
+    (g) => g.required && (optionSel[g.id] ?? []).length === 0,
+  );
+  const canOrder =
+    !!fabricId && !!shippingId && missingRequired.length === 0;
+
   const money = (amount: number) => formatMoney({ amount, currency: props.currency });
 
   return (
@@ -305,12 +311,28 @@ export function Configurator(props: ConfiguratorProps) {
             <div className="font-serif text-xl font-semibold tabular-nums">
               {money(total)}
             </div>
+            {props.signedIn && !canOrder && (
+              <div className="font-mono text-[11px] text-brass">
+                {!fabricId
+                  ? "Pick a fabric"
+                  : missingRequired.length > 0
+                    ? `Choose: ${missingRequired.map((g) => g.name).join(", ")}`
+                    : !shippingId
+                      ? "Pick shipping"
+                      : ""}
+              </div>
+            )}
           </div>
           {props.signedIn ? (
             <button
               type="submit"
               className="btn-primary"
-              disabled={pending || !fabricId || !shippingId}
+              disabled={pending || !canOrder}
+              title={
+                missingRequired.length > 0
+                  ? `Choose: ${missingRequired.map((g) => g.name).join(", ")}`
+                  : undefined
+              }
             >
               {pending ? "Placing…" : "Place test order"}
             </button>

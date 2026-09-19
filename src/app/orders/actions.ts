@@ -129,10 +129,11 @@ export async function createOrder(
   // Option values must belong to this tailor + this garment type.
   let optionModifiers: number[] = [];
   let optionDetails: { id: string; name: string; price_modifier: number }[] = [];
+  const selectedGroupIds = new Set<string>();
   if (optionValueIds.length > 0) {
     const { data: values } = await supabase
       .from("option_values")
-      .select("id, name, price_modifier, option_groups!inner(tailor_id, garment_type_id)")
+      .select("id, name, price_modifier, option_group_id, option_groups!inner(tailor_id, garment_type_id)")
       .in("id", optionValueIds);
     const valid = (values ?? []).filter((v) => {
       const g = v.option_groups as unknown as {
@@ -147,7 +148,18 @@ export async function createOrder(
       name: v.name,
       price_modifier: v.price_modifier,
     }));
+    for (const v of valid) selectedGroupIds.add(v.option_group_id);
   }
+
+  // Enforce required option groups for this garment type.
+  const { data: requiredGroups } = await supabase
+    .from("option_groups")
+    .select("id, name")
+    .eq("tailor_id", tailorId)
+    .eq("garment_type_id", garmentTypeId)
+    .eq("required", true);
+  const missing = (requiredGroups ?? []).find((g) => !selectedGroupIds.has(g.id));
+  if (missing) return { error: `Please choose a ${missing.name}.` };
 
   // Shipping option must belong to this tailor.
   const { data: shipping } = await supabase
