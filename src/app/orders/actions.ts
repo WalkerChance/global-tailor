@@ -170,6 +170,20 @@ export async function createOrder(
     .maybeSingle();
   if (!shipping) return { error: "That shipping option isn't available." };
 
+  // Resolve the delivery address from the customer's saved addresses.
+  const addressId = String(formData.get("shipping_address_id") ?? "");
+  const { data: customer } = await supabase
+    .from("customers")
+    .select("shipping_addresses")
+    .eq("user_id", ctx.userId)
+    .maybeSingle();
+  const savedAddresses = (customer?.shipping_addresses as { id: string }[]) ?? [];
+  let shippingAddress: unknown = null;
+  if (savedAddresses.length > 0) {
+    shippingAddress = savedAddresses.find((a) => a.id === addressId) ?? null;
+    if (!shippingAddress) return { error: "Choose a shipping address." };
+  }
+
   // Measurements from measure_* fields.
   const measurements: Record<string, string> = {};
   for (const [key, value] of formData.entries()) {
@@ -243,6 +257,7 @@ export async function createOrder(
         min_days: shipping.min_days,
         max_days: shipping.max_days,
       },
+      shipping_address: shippingAddress,
       subtotal: totals.subtotal,
       platform_fee: totals.platform_fee,
       shipping_amount: totals.shipping_amount,

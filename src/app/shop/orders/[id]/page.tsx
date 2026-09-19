@@ -28,7 +28,7 @@ export default async function TailorOrderPage({
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, tailor_id, status, is_test, currency, total, fabric_selections, option_selections, measurement_snapshot, shipping_option_snapshot, created_at, garment_types(name)",
+      "id, tailor_id, status, is_test, currency, total, fabric_selections, option_selections, measurement_snapshot, shipping_option_snapshot, shipping_address, created_at, garment_types(name)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -66,6 +66,19 @@ export default async function TailorOrderPage({
     (order.option_selections as { values?: { name: string }[] } | null)?.values ?? [];
   const measures = (order.measurement_snapshot as Record<string, string>) ?? {};
   const ship = order.shipping_option_snapshot as { label?: string } | null;
+  const addr = order.shipping_address as {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+  } | null;
+  const addrLine = addr
+    ? [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country]
+        .filter(Boolean)
+        .join(", ")
+    : null;
   const status = order.status;
   const hasPendingReview = (reviews ?? []).some((r) => r.status === "pending");
   const canProposeAdjustment =
@@ -147,6 +160,7 @@ export default async function TailorOrderPage({
             <Line label="Fabric" value={fabric?.name ?? "—"} />
             <Line label="Options" value={options.length ? options.map((o) => o.name).join(", ") : "None"} />
             <Line label="Shipping" value={ship?.label ?? "—"} />
+            {addrLine && <Line label="Ship to" value={addrLine} />}
           </dl>
         </section>
         <section className="card">

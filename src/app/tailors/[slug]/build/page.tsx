@@ -9,6 +9,7 @@ import {
   type ConfigGroup,
   type ConfigShip,
   type ConfigField,
+  type ConfigAddress,
 } from "@/components/configurator";
 
 type Params = { slug: string };
@@ -115,20 +116,46 @@ export default async function BuildPage({
   const shipping = (shipRows ?? []) as ConfigShip[];
   const fields = (fieldRows ?? []) as ConfigField[];
 
-  // Prefill measurements from the customer's saved profiles (if signed in).
-  let prefill: Record<string, Record<string, string>> = {};
+  // Prefill measurements + load saved shipping addresses (if signed in).
+  const prefill: Record<string, Record<string, string>> = {};
+  let addresses: ConfigAddress[] = [];
+  let defaultAddressId: string | null = null;
   if (ctx) {
-    const { data: profiles } = await supabase
-      .from("measurement_profiles")
-      .select("garment_type_id, values, updated_at")
-      .eq("customer_id", ctx.userId)
-      .in("garment_type_id", typeIds)
-      .order("updated_at", { ascending: false });
+    const [{ data: profiles }, { data: customer }] = await Promise.all([
+      supabase
+        .from("measurement_profiles")
+        .select("garment_type_id, values, updated_at")
+        .eq("customer_id", ctx.userId)
+        .in("garment_type_id", typeIds)
+        .order("updated_at", { ascending: false }),
+      supabase
+        .from("customers")
+        .select("shipping_addresses, default_address_id")
+        .eq("user_id", ctx.userId)
+        .maybeSingle(),
+    ]);
     for (const p of profiles ?? []) {
       if (p.garment_type_id && !prefill[p.garment_type_id]) {
         prefill[p.garment_type_id] = (p.values as Record<string, string>) ?? {};
       }
     }
+    type RawAddress = {
+      id: string;
+      label?: string;
+      line1?: string;
+      city?: string;
+      state?: string;
+      postal_code?: string;
+      country?: string;
+    };
+    addresses = ((customer?.shipping_addresses as RawAddress[]) ?? []).map((a) => ({
+      id: a.id,
+      label: a.label ?? "Address",
+      summary: [a.line1, a.city, a.state, a.postal_code, a.country]
+        .filter(Boolean)
+        .join(", "),
+    }));
+    defaultAddressId = customer?.default_address_id ?? addresses[0]?.id ?? null;
   }
 
   const currency = (offered?.[0]?.currency as string) ?? "USD";
@@ -152,6 +179,8 @@ export default async function BuildPage({
           shipping={shipping}
           fields={fields}
           prefill={prefill}
+          addresses={addresses}
+          defaultAddressId={defaultAddressId}
         />
       </div>
     </div>

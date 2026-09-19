@@ -40,6 +40,7 @@ export type ConfigField = {
   required: boolean;
   garment_type_id: string;
 };
+export type ConfigAddress = { id: string; label: string; summary: string };
 
 export type ConfiguratorProps = {
   tailorId: string;
@@ -52,6 +53,8 @@ export type ConfiguratorProps = {
   shipping: ConfigShip[];
   fields: ConfigField[];
   prefill: Record<string, Record<string, string>>;
+  addresses: ConfigAddress[];
+  defaultAddressId: string | null;
 };
 
 export function Configurator(props: ConfiguratorProps) {
@@ -64,6 +67,7 @@ export function Configurator(props: ConfiguratorProps) {
   const [fabricId, setFabricId] = useState("");
   const [optionSel, setOptionSel] = useState<Record<string, string[]>>({});
   const [shippingId, setShippingId] = useState("");
+  const [addressId, setAddressId] = useState(props.defaultAddressId ?? "");
   const [measures, setMeasures] = useState<Record<string, string>>(
     () => props.prefill[props.types[0]?.id ?? ""] ?? {},
   );
@@ -116,8 +120,12 @@ export function Configurator(props: ConfiguratorProps) {
   const missingRequired = groups.filter(
     (g) => g.required && (optionSel[g.id] ?? []).length === 0,
   );
+  const needsAddress = props.signedIn && props.addresses.length > 0;
   const canOrder =
-    !!fabricId && !!shippingId && missingRequired.length === 0;
+    !!fabricId &&
+    !!shippingId &&
+    missingRequired.length === 0 &&
+    (!needsAddress || !!addressId);
 
   const money = (amount: number) => formatMoney({ amount, currency: props.currency });
 
@@ -292,6 +300,43 @@ export function Configurator(props: ConfiguratorProps) {
         )}
       </Step>
 
+      {/* 6. Ship to */}
+      {props.signedIn && (
+        <Step n={6} title="Ship to">
+          {props.addresses.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-line bg-surface p-5 text-sm text-ink-soft">
+              No saved address yet. Add one in{" "}
+              <a href="/account/profile" className="text-brass">
+                your profile
+              </a>{" "}
+              to place the order.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {props.addresses.map((a) => (
+                <label
+                  key={a.id}
+                  className={`flex flex-col gap-0.5 rounded-xl border bg-surface p-4 ${
+                    addressId === a.id ? "border-brass" : "border-line"
+                  } cursor-pointer`}
+                >
+                  <input
+                    type="radio"
+                    name="shipping_address_id"
+                    value={a.id}
+                    checked={addressId === a.id}
+                    onChange={() => setAddressId(a.id)}
+                    className="sr-only"
+                  />
+                  <span className="font-medium">{a.label}</span>
+                  <span className="font-mono text-xs text-ink-soft">{a.summary}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </Step>
+      )}
+
       {state.error && (
         <p className="mt-4 text-sm text-brass" role="alert">
           {state.error}
@@ -319,7 +364,11 @@ export function Configurator(props: ConfiguratorProps) {
                     ? `Choose: ${missingRequired.map((g) => g.name).join(", ")}`
                     : !shippingId
                       ? "Pick shipping"
-                      : ""}
+                      : needsAddress && !addressId
+                        ? "Choose an address"
+                        : props.addresses.length === 0
+                          ? "Add an address in your profile"
+                          : ""}
               </div>
             )}
           </div>

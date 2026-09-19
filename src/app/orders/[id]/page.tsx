@@ -26,7 +26,7 @@ export default async function OrderPage({
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, customer_id, status, is_test, currency, subtotal, shipping_amount, tax_amount, platform_fee, total, fabric_selections, option_selections, measurement_snapshot, shipping_option_snapshot, created_at, garment_types(name), tailor_profiles(shop_name, slug)",
+      "id, customer_id, status, is_test, currency, subtotal, shipping_amount, tax_amount, platform_fee, total, fabric_selections, option_selections, measurement_snapshot, shipping_option_snapshot, shipping_address, created_at, garment_types(name), tailor_profiles(shop_name, slug)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -73,6 +73,20 @@ export default async function OrderPage({
       ?.values ?? [];
   const measures = (order.measurement_snapshot as Record<string, string>) ?? {};
   const ship = order.shipping_option_snapshot as { label?: string } | null;
+  const addr = order.shipping_address as {
+    label?: string;
+    line1?: string;
+    line2?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+  } | null;
+  const addrLine = addr
+    ? [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country]
+        .filter(Boolean)
+        .join(", ")
+    : null;
   const money = (a: number) => formatMoney({ amount: a, currency: order.currency });
 
   return (
@@ -183,6 +197,7 @@ export default async function OrderPage({
               value={options.length ? options.map((o) => o.name).join(", ") : "None"}
             />
             <Line label="Shipping" value={ship?.label ?? "—"} />
+            {addrLine && <Line label="Ship to" value={addrLine} />}
           </dl>
         </section>
 
