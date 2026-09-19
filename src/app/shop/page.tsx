@@ -73,7 +73,10 @@ export default async function ShopConsolePage() {
           <Link href={`/tailors/${profile.slug}`} className="hover:text-brass">
             /tailors/{profile.slug}
           </Link>{" "}
-          · {profile.verification_status}
+          · {profile.verification_status} ·{" "}
+          <Link href="/shop/orders" className="text-brass">
+            Orders →
+          </Link>
         </p>
       )}
 

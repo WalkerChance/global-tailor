@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/types/database";
+import { respondMeasurementReview, confirmFit } from "@/app/orders/actions";
 
 type Params = { id: string };
 
@@ -15,19 +16,37 @@ export default async function OrderPage({
   params: Promise<Params>;
 }) {
   const { id } = await params;
-  await requireUser(`/orders/${id}`);
+  const ctx = await requireUser(`/orders/${id}`);
   const supabase = await createClient();
 
   // RLS restricts this to the order's customer, its tailor, or an admin.
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, status, is_test, currency, subtotal, shipping_amount, tax_amount, platform_fee, total, fabric_selections, option_selections, measurement_snapshot, shipping_option_snapshot, created_at, garment_types(name), tailor_profiles(shop_name, slug)",
+      "id, customer_id, status, is_test, currency, subtotal, shipping_amount, tax_amount, platform_fee, total, fabric_selections, option_selections, measurement_snapshot, shipping_option_snapshot, created_at, garment_types(name), tailor_profiles(shop_name, slug)",
     )
     .eq("id", id)
     .maybeSingle();
 
   if (!order) notFound();
+
+  const isCustomer = order.customer_id === ctx.userId;
+
+  const [{ data: shipment }, { data: reviews }] = await Promise.all([
+    supabase
+      .from("shipments")
+      .select("carrier, tracking_number, tracking_url, shipped_at, status")
+      .eq("order_id", id)
+      .order("created_at", { ascending: false })
+      .maybeSingle(),
+    supabase
+      .from("order_measurement_reviews")
+      .select("id, suggested_values, note, status, created_at")
+      .eq("order_id", id)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  const pendingReview = (reviews ?? []).find((r) => r.status === "pending");
 
   const gt = order.garment_types as unknown as { name: string } | null;
   const shop = order.tailor_profiles as unknown as {
@@ -69,6 +88,76 @@ export default async function OrderPage({
       <p className="mt-1 font-mono text-xs text-ink-soft">
         #{order.id.slice(0, 8)} · {new Date(order.created_at).toLocaleDateString()}
       </p>
+
+      {/* Pending measurement adjustment from the tailor */}
+      {isCustomer && pendingReview && (
+        <section className="card mt-6 border-brass/50">
+          <h2 className="font-serif text-base font-semibold">
+            Your tailor proposed a measurement adjustment
+          </h2>
+          {pendingReview.note && (
+            <p className="mt-2 text-sm text-ink-soft">{pendingReview.note}</p>
+          )}
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-3">
+            {Object.entries(
+              (pendingReview.suggested_values as Record<string, string>) ?? {},
+            ).map(([k, v]) => (
+              <Line key={k} label={k} value={String(v)} />
+            ))}
+          </dl>
+          <div className="mt-4 flex gap-3">
+            <form action={respondMeasurementReview}>
+              <input type="hidden" name="order_id" value={order.id} />
+              <input type="hidden" name="review_id" value={pendingReview.id} />
+              <input type="hidden" name="decision" value="accept" />
+              <button className="btn-primary">Accept changes</button>
+            </form>
+            <form action={respondMeasurementReview}>
+              <input type="hidden" name="order_id" value={order.id} />
+              <input type="hidden" name="review_id" value={pendingReview.id} />
+              <input type="hidden" name="decision" value="decline" />
+              <button className="font-mono text-xs text-ink-soft hover:text-brass">
+                Keep mine
+              </button>
+            </form>
+          </div>
+        </section>
+      )}
+
+      {/* Shipment tracking */}
+      {shipment && (
+        <section className="card mt-4">
+          <h2 className="font-serif text-base font-semibold">Shipment</h2>
+          <p className="mt-2 text-sm">
+            {shipment.carrier ? `${shipment.carrier} · ` : ""}
+            <span className="font-mono">{shipment.tracking_number}</span>
+          </p>
+          {shipment.tracking_url && (
+            <a
+              href={shipment.tracking_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-block font-mono text-xs text-brass"
+            >
+              Track package →
+            </a>
+          )}
+        </section>
+      )}
+
+      {/* Confirm fit */}
+      {isCustomer && order.status === "delivered" && (
+        <section className="card mt-4 border-brass/50">
+          <h2 className="font-serif text-base font-semibold">Did it fit?</h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Confirm receipt and fit once your garment arrives.
+          </p>
+          <form action={confirmFit} className="mt-3">
+            <input type="hidden" name="order_id" value={order.id} />
+            <button className="btn-primary">Confirm fit</button>
+          </form>
+        </section>
+      )}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         <section className="card">

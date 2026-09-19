@@ -1,11 +1,82 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/auth";
 import { computeOrder } from "@/lib/pricing";
 
 export type OrderState = { error?: string };
+
+/** Customer accepts/declines a tailor's proposed measurement adjustment. */
+export async function respondMeasurementReview(formData: FormData): Promise<void> {
+  const ctx = await getSessionContext();
+  if (!ctx) return;
+
+  const orderId = String(formData.get("order_id") ?? "");
+  const reviewId = String(formData.get("review_id") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  if (!orderId || !reviewId || !["accept", "decline"].includes(decision)) return;
+
+  const supabase = await createClient();
+
+  // Confirm this is the customer's own order (RLS also enforces this).
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, customer_id, measurement_snapshot")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order || order.customer_id !== ctx.userId) return;
+
+  const { data: review } = await supabase
+    .from("order_measurement_reviews")
+    .select("id, suggested_values")
+    .eq("id", reviewId)
+    .eq("order_id", orderId)
+    .maybeSingle();
+  if (!review) return;
+
+  await supabase
+    .from("order_measurement_reviews")
+    .update({ status: decision === "accept" ? "customer_accepted" : "customer_declined" })
+    .eq("id", reviewId);
+
+  if (decision === "accept") {
+    const merged = {
+      ...((order.measurement_snapshot as Record<string, string>) ?? {}),
+      ...((review.suggested_values as Record<string, string>) ?? {}),
+    };
+    await supabase.from("orders").update({ measurement_snapshot: merged }).eq("id", orderId);
+  }
+
+  await supabase.from("order_events").insert({
+    order_id: orderId,
+    type: `measurement_review_${decision === "accept" ? "accepted" : "declined"}`,
+  });
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath(`/shop/orders/${orderId}`);
+}
+
+/** Customer confirms the delivered garment fits. */
+export async function confirmFit(formData: FormData): Promise<void> {
+  const ctx = await getSessionContext();
+  if (!ctx) return;
+  const orderId = String(formData.get("order_id") ?? "");
+  if (!orderId) return;
+
+  const supabase = await createClient();
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, customer_id")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!order || order.customer_id !== ctx.userId) return;
+
+  await supabase.from("orders").update({ status: "fit_confirmed" }).eq("id", orderId);
+  await supabase.from("order_events").insert({ order_id: orderId, type: "fit_confirmed" });
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath(`/shop/orders/${orderId}`);
+}
 
 /**
  * Places a Phase 1 TEST order (no payment, no tailor engagement).
