@@ -12,8 +12,20 @@ and the tailor handles international shipping and enters the tracking number.
 
 ## What's here
 
-This repository currently contains the **plan**, not the application. Start
-here:
+The **Phase 1 foundation is scaffolded** (mobile-first Next.js + Supabase, auth,
+roles, RLS, and the full data model) alongside the plan.
+
+### Run the app
+```bash
+npm install
+cp .env.example .env.local      # add your Supabase URL + anon key
+npm run dev                     # http://localhost:3000
+```
+Apply the database schema first — see [`supabase/README.md`](supabase/README.md).
+Agent/contributor conventions live in [`CLAUDE.md`](CLAUDE.md).
+
+### The plan
+Start here:
 
 | Document | What it covers |
 |---|---|
@@ -59,7 +71,8 @@ ships direct to the customer as the importer of record. A separate network of
 ## Status
 
 - [x] Plan drafted and refined (round 3)
-- [ ] Phase 1 scaffolded: app + auth/roles/RLS + shop + configurator (test order)
+- [x] Phase 1 foundation scaffolded: Next.js + Supabase, auth/roles/RLS, data model
+- [ ] Phase 1 features: shop editor, configurator, measurement wizard, test order
 - [ ] US tax + break-even research (separate workstream, feeds Phase 2)
 - [ ] Payments (Stripe Connect) + tax wired (Phase 2)
 - [ ] Key legal decisions resolved (see open questions)

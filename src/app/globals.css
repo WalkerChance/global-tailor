@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tailoring identity: navy wool, chalk paper, brass. Mirrors docs/plan.html. */
+:root {
+  --ground: #ECEEE9;
+  --surface: #F8F9F5;
+  --surface-2: #F1F3EC;
+  --line: #D5D8CF;
+  --ink: #15233C;
+  --ink-soft: #4C5872;
+  --brass: #906516;
+  --navy: #12203A;
+  --chalk: #EDEFE8;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0D1624;
+    --surface: #14223B;
+    --surface-2: #101D33;
+    --line: #243349;
+    --ink: #E8EBE2;
+    --ink-soft: #9FAAC0;
+    --brass: #CBA157;
+    --navy: #0A1322;
+    --chalk: #EDEFE8;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #0D1624;
+  --surface: #14223B;
+  --surface-2: #101D33;
+  --line: #243349;
+  --ink: #E8EBE2;
+  --ink-soft: #9FAAC0;
+  --brass: #CBA157;
+  --navy: #0A1322;
+  --chalk: #EDEFE8;
+  color-scheme: dark;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--ground);
+    color: var(--ink);
+  }
+  body {
+    font-family: var(--font-sans), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-serif), Georgia, serif;
+    text-wrap: balance;
+  }
+  a {
+    color: inherit;
+  }
+  :focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
