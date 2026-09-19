@@ -67,6 +67,9 @@ export default async function TailorOrderPage({
   const measures = (order.measurement_snapshot as Record<string, string>) ?? {};
   const ship = order.shipping_option_snapshot as { label?: string } | null;
   const status = order.status;
+  const hasPendingReview = (reviews ?? []).some((r) => r.status === "pending");
+  const canProposeAdjustment =
+    ["placed", "accepted", "in_production"].includes(status) && !hasPendingReview;
 
   return (
     <div className="py-10">
@@ -168,24 +171,32 @@ export default async function TailorOrderPage({
         <p className="mt-1 text-sm text-ink-soft">
           Suggest changes before cutting. The customer accepts or declines.
         </p>
-        <form action={proposeMeasurementReview} className="mt-4 flex flex-col gap-4">
-          <input type="hidden" name="order_id" value={order.id} />
-          {Object.keys(measures).length > 0 && (
-            <div className="grid gap-3 sm:grid-cols-3">
-              {Object.entries(measures).map(([k, v]) => (
-                <label key={k} className="flex flex-col gap-1.5">
-                  <span className="label">{k}</span>
-                  <input name={`suggest_${k}`} defaultValue={String(v)} className="input" />
-                </label>
-              ))}
-            </div>
-          )}
-          <label className="flex flex-col gap-1.5">
-            <span className="label">Note to customer</span>
-            <textarea name="note" className="textarea" placeholder="Why the adjustment…" />
-          </label>
-          <button className="btn-primary self-start">Send proposal</button>
-        </form>
+        {canProposeAdjustment ? (
+          <form action={proposeMeasurementReview} className="mt-4 flex flex-col gap-4">
+            <input type="hidden" name="order_id" value={order.id} />
+            {Object.keys(measures).length > 0 && (
+              <div className="grid gap-3 sm:grid-cols-3">
+                {Object.entries(measures).map(([k, v]) => (
+                  <label key={k} className="flex flex-col gap-1.5">
+                    <span className="label">{k}</span>
+                    <input name={`suggest_${k}`} defaultValue={String(v)} className="input" />
+                  </label>
+                ))}
+              </div>
+            )}
+            <label className="flex flex-col gap-1.5">
+              <span className="label">Note to customer</span>
+              <textarea name="note" className="textarea" placeholder="Why the adjustment…" />
+            </label>
+            <button className="btn-primary self-start">Send proposal</button>
+          </form>
+        ) : (
+          <p className="mt-3 font-mono text-xs text-ink-soft">
+            {hasPendingReview
+              ? "A proposal is awaiting the customer's response."
+              : "Adjustments can only be proposed before the garment ships."}
+          </p>
+        )}
 
         {reviews && reviews.length > 0 && (
           <ul className="mt-5 flex flex-col gap-2 border-t border-line pt-4">
