@@ -28,3 +28,28 @@ export function centsToInput(cents: number | null | undefined): string {
   if (cents == null) return "";
   return (cents / 100).toFixed(2);
 }
+
+/**
+ * Restrict a post-auth redirect target to a local path, preventing open
+ * redirects. Accepts only "/path" (not "//host", not "/\\host", not absolute).
+ */
+export function safeNextPath(
+  next: string | null | undefined,
+  fallback = "/account",
+): string {
+  if (!next) return fallback;
+  if (!next.startsWith("/")) return fallback;
+  if (next.startsWith("//") || next.startsWith("/\\")) return fallback;
+  return next;
+}
+
+/** True only for http(s) URLs — used to gate user-supplied links (tracking). */
+export function isHttpUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}

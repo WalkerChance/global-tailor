@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext } from "@/lib/auth";
 import { computeOrder } from "@/lib/pricing";
+import { safeNextPath } from "@/lib/utils";
 
 export type OrderState = { error?: string };
 
@@ -87,7 +88,7 @@ export async function createOrder(
   _prev: OrderState,
   formData: FormData,
 ): Promise<OrderState> {
-  const returnTo = String(formData.get("return_to") ?? "/");
+  const returnTo = safeNextPath(String(formData.get("return_to") ?? "/"), "/");
 
   const ctx = await getSessionContext();
   if (!ctx) redirect(`/login?next=${encodeURIComponent(returnTo)}`);

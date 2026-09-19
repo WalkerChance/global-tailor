@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/types/database";
+import { isHttpUrl } from "@/lib/utils";
 import { respondMeasurementReview, confirmFit } from "@/app/orders/actions";
 import { OrderTimeline } from "@/components/order-timeline";
 import { MessageThread } from "@/components/message-thread";
@@ -145,9 +146,9 @@ export default async function OrderPage({
             {shipment.carrier ? `${shipment.carrier} · ` : ""}
             <span className="font-mono">{shipment.tracking_number}</span>
           </p>
-          {shipment.tracking_url && (
+          {isHttpUrl(shipment.tracking_url) && (
             <a
-              href={shipment.tracking_url}
+              href={shipment.tracking_url!}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-1 inline-block font-mono text-xs text-brass"

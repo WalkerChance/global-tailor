@@ -35,7 +35,9 @@ export async function grantRole(
     .select("id, email")
     .ilike("email", email)
     .maybeSingle();
-  if (!user) {
+  // Guard against ilike wildcards (%/_) in the input matching a different user:
+  // require an exact case-insensitive match.
+  if (!user || (user.email ?? "").toLowerCase() !== email) {
     return { error: "No user with that email — they must sign up first." };
   }
 
