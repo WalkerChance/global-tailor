@@ -7,7 +7,8 @@ import type { UserRole } from "@/lib/types/database";
 
 export type AdminState = { ok?: boolean; error?: string; message?: string };
 
-const GRANTABLE: UserRole[] = ["tailor", "admin", "finisher"];
+// finisher is Phase 2+ (local alterations) — not grantable at launch.
+const GRANTABLE: UserRole[] = ["tailor", "admin"];
 
 async function requireAdmin(): Promise<{ userId: string } | { error: string }> {
   const ctx = await getSessionContext();

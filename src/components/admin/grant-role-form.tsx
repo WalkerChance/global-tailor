@@ -37,7 +37,6 @@ export function GrantRoleForm() {
           <select id="grant_role" name="role" className="input" defaultValue="tailor">
             <option value="tailor">tailor</option>
             <option value="admin">admin</option>
-            <option value="finisher">finisher</option>
           </select>
         </Field>
       </div>

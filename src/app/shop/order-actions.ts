@@ -23,13 +23,23 @@ function refresh(orderId: string) {
   revalidatePath(`/orders/${orderId}`);
 }
 
+// Allowed forward transitions the tailor can drive directly.
+const TAILOR_TRANSITIONS: Record<string, string> = {
+  accepted: "placed",
+  in_production: "accepted",
+  delivered: "shipped",
+};
+
 export async function setOrderStatus(formData: FormData): Promise<void> {
   const orderId = String(formData.get("order_id") ?? "");
   const status = String(formData.get("status") ?? "");
-  if (!["accepted", "in_production", "delivered"].includes(status)) return;
+  const requiredFrom = TAILOR_TRANSITIONS[status];
+  if (!requiredFrom) return;
 
   const loaded = await loadTailorOrder(orderId);
   if (!loaded) return;
+  // Only allow the valid forward transition (no backward/again moves).
+  if (loaded.order.status !== requiredFrom) return;
 
   await loaded.supabase.from("orders").update({ status }).eq("id", orderId);
   await loaded.supabase
@@ -42,6 +52,15 @@ export async function proposeMeasurementReview(formData: FormData): Promise<void
   const orderId = String(formData.get("order_id") ?? "");
   const loaded = await loadTailorOrder(orderId);
   if (!loaded) return;
+
+  // Only before the garment ships, and not while a proposal is already pending.
+  if (!["placed", "accepted", "in_production"].includes(loaded.order.status)) return;
+  const { count: pending } = await loaded.supabase
+    .from("order_measurement_reviews")
+    .select("*", { count: "exact", head: true })
+    .eq("order_id", orderId)
+    .eq("status", "pending");
+  if ((pending ?? 0) > 0) return;
 
   const suggested: Record<string, string> = {};
   for (const [k, v] of formData.entries()) {
@@ -71,6 +90,8 @@ export async function addShipment(formData: FormData): Promise<void> {
 
   const loaded = await loadTailorOrder(orderId);
   if (!loaded) return;
+  // Only ship from a pre-ship state (prevents duplicate shipments / regressions).
+  if (!["placed", "accepted", "in_production"].includes(loaded.order.status)) return;
 
   await loaded.supabase.from("shipments").insert({
     order_id: orderId,

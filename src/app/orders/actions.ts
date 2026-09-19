@@ -194,6 +194,19 @@ export async function createOrder(
     }
   }
 
+  // Enforce required measurement fields for this garment type (standard + this
+  // tailor's custom fields).
+  const { data: reqFields } = await supabase
+    .from("measurement_fields")
+    .select("key, label, owner_tailor_id")
+    .eq("garment_type_id", garmentTypeId)
+    .eq("required", true)
+    .or(`owner_tailor_id.is.null,owner_tailor_id.eq.${tailorId}`);
+  const missingField = (reqFields ?? []).find(
+    (f) => !(measurements[f.key] ?? "").trim(),
+  );
+  if (missingField) return { error: `Please enter ${missingField.label}.` };
+
   const totals = computeOrder({
     basePrice: sgt.base_price,
     fabricPrice: fabric.price_amount,

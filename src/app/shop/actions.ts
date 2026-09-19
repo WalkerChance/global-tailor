@@ -349,8 +349,21 @@ export async function addShippingOption(
   const label = String(formData.get("label") ?? "").trim();
   if (!label) return { error: "A label is required (e.g. “DHL Express”)." };
 
-  const minRaw = String(formData.get("min_days") ?? "").trim();
-  const maxRaw = String(formData.get("max_days") ?? "").trim();
+  const parseDays = (raw: FormDataEntryValue | null): number | null | undefined => {
+    const s = String(raw ?? "").trim();
+    if (s === "") return null;
+    const n = Number(s);
+    if (!Number.isInteger(n) || n < 0) return undefined; // invalid
+    return n;
+  };
+  const minDays = parseDays(formData.get("min_days"));
+  const maxDays = parseDays(formData.get("max_days"));
+  if (minDays === undefined || maxDays === undefined) {
+    return { error: "Delivery days must be whole numbers (0 or more)." };
+  }
+  if (minDays != null && maxDays != null && minDays > maxDays) {
+    return { error: "Min days can't exceed max days." };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.from("shipping_options").insert({
@@ -359,8 +372,8 @@ export async function addShippingOption(
     carrier: String(formData.get("carrier") ?? "").trim() || null,
     base_price: parseDollarsToCents(formData.get("base_price")) ?? 0,
     additional_item_price: parseDollarsToCents(formData.get("additional_item_price")),
-    min_days: minRaw === "" ? null : Number(minRaw),
-    max_days: maxRaw === "" ? null : Number(maxRaw),
+    min_days: minDays,
+    max_days: maxDays,
     currency: "USD",
     destination_countries: ["US"],
     active: true,

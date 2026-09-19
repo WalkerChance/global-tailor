@@ -120,11 +120,15 @@ export function Configurator(props: ConfiguratorProps) {
   const missingRequired = groups.filter(
     (g) => g.required && (optionSel[g.id] ?? []).length === 0,
   );
+  const missingMeasures = fields.filter(
+    (f) => f.required && !(measures[f.key] ?? "").trim(),
+  );
   // A delivery address is always required for a signed-in customer to order.
   const canOrder =
     !!fabricId &&
     !!shippingId &&
     missingRequired.length === 0 &&
+    missingMeasures.length === 0 &&
     (!props.signedIn || !!addressId);
 
   const money = (amount: number) => formatMoney({ amount, currency: props.currency });
@@ -133,6 +137,12 @@ export function Configurator(props: ConfiguratorProps) {
     <form action={formAction} className="pb-28">
       <input type="hidden" name="tailor_id" value={props.tailorId} />
       <input type="hidden" name="return_to" value={props.returnTo} />
+      {/* Selected options submit via hidden inputs (visible controls are
+          React-controlled, so single-select groups never collide as one DOM
+          radio group). */}
+      {selectedValueIds.map((vid) => (
+        <input key={vid} type="hidden" name="option_value" value={vid} />
+      ))}
 
       {/* 1. Garment type */}
       <Step n={1} title="Garment">
@@ -217,7 +227,6 @@ export function Configurator(props: ConfiguratorProps) {
                       >
                         <input
                           type={g.multi_select ? "checkbox" : "radio"}
-                          name="option_value"
                           value={v.id}
                           checked={checked}
                           onChange={() => toggleOption(g, v.id)}
@@ -362,13 +371,15 @@ export function Configurator(props: ConfiguratorProps) {
                   ? "Pick a fabric"
                   : missingRequired.length > 0
                     ? `Choose: ${missingRequired.map((g) => g.name).join(", ")}`
-                    : !shippingId
-                      ? "Pick shipping"
-                      : props.signedIn && !addressId
-                        ? props.addresses.length === 0
-                          ? "Add an address in your profile"
-                          : "Choose an address"
-                        : ""}
+                    : missingMeasures.length > 0
+                      ? `Enter: ${missingMeasures.map((f) => f.label).join(", ")}`
+                      : !shippingId
+                        ? "Pick shipping"
+                        : props.signedIn && !addressId
+                          ? props.addresses.length === 0
+                            ? "Add an address in your profile"
+                            : "Choose an address"
+                          : ""}
               </div>
             )}
           </div>
