@@ -8,6 +8,12 @@
 --   * ownership: a tailor's user_id is the shop id; customer's user_id is the profile id.
 --   * RLS is enabled on every table; policies are defined at the bottom.
 
+-- Allow forward references in SQL function bodies (has_role() references
+-- user_roles before it is created). This is what pg_dump does; without it,
+-- Postgres validates SQL-language function bodies eagerly and the migration
+-- fails on a clean database.
+set check_function_bodies = off;
+
 -- ---------------------------------------------------------------------------
 -- Extensions
 -- ---------------------------------------------------------------------------
