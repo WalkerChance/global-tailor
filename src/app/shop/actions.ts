@@ -5,8 +5,14 @@ import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionContext, hasRole } from "@/lib/auth";
 import { slugify, parseDollarsToCents } from "@/lib/utils";
+import {
+  analyzeFabricImage,
+  isFabricAiEnabled,
+  type FabricAttributes,
+} from "@/lib/ai/fabric-vision";
 
 export type ActionState = { ok?: boolean; error?: string };
+export type SuggestState = { attrs?: FabricAttributes; error?: string };
 
 async function requireTailorId(): Promise<
   { userId: string } | { error: string }
@@ -99,6 +105,48 @@ export async function setGarmentType(formData: FormData): Promise<void> {
   revalidatePath("/shop");
 }
 
+/**
+ * AI photo → fabric attributes. Called from the Add-fabric form (not a submit)
+ * before the row exists: the tailor picks a photo, we return proposed
+ * attributes, and the form prefills the fields for the human to confirm/edit.
+ * No-op (clean error) when ANTHROPIC_API_KEY isn't set.
+ */
+export async function suggestFabricAttributes(
+  _prev: SuggestState,
+  formData: FormData,
+): Promise<SuggestState> {
+  const auth = await requireTailorId();
+  if ("error" in auth) return { error: auth.error };
+
+  if (!isFabricAiEnabled()) {
+    return { error: "AI suggestions aren’t configured on this deployment." };
+  }
+
+  const photo = formData.get("photo");
+  if (!(photo instanceof File) || photo.size === 0) {
+    return { error: "Choose a photo first." };
+  }
+  if (photo.size > 8 * 1024 * 1024) {
+    return { error: "Image is too large (max 8MB)." };
+  }
+  if (!(photo.type || "").startsWith("image/")) {
+    return { error: "That file isn’t an image." };
+  }
+
+  try {
+    const buf = Buffer.from(await photo.arrayBuffer());
+    const attrs = await analyzeFabricImage({
+      data: buf.toString("base64"),
+      mimeType: photo.type || "image/jpeg",
+    });
+    return { attrs };
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "Could not analyze the image.",
+    };
+  }
+}
+
 export async function addFabric(
   _prev: ActionState,
   formData: FormData,
@@ -110,6 +158,22 @@ export async function addFabric(
   if (!name) return { error: "Fabric name is required." };
 
   const priceAmount = parseDollarsToCents(formData.get("price_amount"));
+
+  // AI-suggested attributes carried from the "Suggest from photo" step, if the
+  // tailor used it. The catalog fields (name/composition/color/pattern) were
+  // already confirmed in the form; here we persist the full proposal for
+  // provenance and mark the media analyzed.
+  let aiAttributes: FabricAttributes | null = null;
+  const aiRaw = String(formData.get("ai_attributes") ?? "").trim();
+  if (aiRaw) {
+    try {
+      const parsed = JSON.parse(aiRaw);
+      if (parsed && typeof parsed === "object") aiAttributes = parsed;
+    } catch {
+      aiAttributes = null;
+    }
+  }
+
   const supabase = await createClient();
 
   // Optional photo → Storage → media row. The uploaded image is the tile for
@@ -135,7 +199,7 @@ export async function addFabric(
         storage_path: path,
         public_url: pub.publicUrl,
         mime_type: photo.type || null,
-        ai_status: "none",
+        ai_status: aiAttributes ? "done" : "none",
       })
       .select("id")
       .single();
@@ -153,6 +217,7 @@ export async function addFabric(
     availability: "in_stock",
     source_media_id: mediaId,
     tile_media_id: mediaId,
+    ai_attributes: aiAttributes,
   });
 
   if (error) return { error: error.message };

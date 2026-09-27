@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/types/database";
 import { AddFabricForm } from "@/components/shop/add-fabric-form";
 import { FabricSwatch } from "@/components/fabric-swatch";
 import { deleteFabric } from "@/app/shop/actions";
+import { isFabricAiEnabled } from "@/lib/ai/fabric-vision";
 
 export const metadata: Metadata = { title: "Fabrics" };
 
@@ -33,7 +34,7 @@ export default async function ShopFabricsPage() {
       </p>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.1fr]">
-        <AddFabricForm />
+        <AddFabricForm aiEnabled={isFabricAiEnabled()} />
 
         <section>
           <h2 className="font-serif text-lg font-semibold">

@@ -17,6 +17,8 @@ Add these under **Project → Settings → Environment Variables** for both
 | `NEXT_PUBLIC_SUPABASE_URL` | Public | Supabase project URL. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public | Anon/publishable key; RLS enforces access. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only | Optional; only for trusted server tasks. Never expose. |
+| `ANTHROPIC_API_KEY` | Server only | Optional. Enables AI "Suggest from photo" for fabrics. Leave unset to keep manual entry — the feature just stays hidden. Never expose. |
+| `ANTHROPIC_MODEL` | Server only | Optional. Overrides the model used for photo analysis (default `claude-haiku-4-5-20251001`). |
 
 > The build itself does not need real values (pages read env at request time),
 > but the running app does — set them before the first real request.
