@@ -50,6 +50,15 @@ as a JWT claim (to avoid a lookup in app code), add a
 policies (objects are namespaced by uploader uid). Fabric photos upload here and
 their public URL is stored in the `media` table — never blobs in Postgres.
 
+## Generated TypeScript types
+
+`src/lib/types/supabase.ts` is generated from the live schema
+(`supabase gen types typescript`). Regenerate it after any schema change. The
+Supabase clients are not yet parameterized with `Database` — adopting
+`createServerClient<Database>()` needs per-query `.returns<T>()` annotations for
+our aliased embeds first (tracked as a follow-up), so today the file is a
+reference + source of `Row`/`Enums` types for gradual typing.
+
 ## Demo data (optional)
 
 To try the full build-and-order loop quickly, run
